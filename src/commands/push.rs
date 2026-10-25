@@ -1,12 +1,18 @@
-use crate::utils::env_parser::read_env_file;
+use crate::utils::{
+    env_parser::read_env_file,
+    env_sync::{find_new_variables, get_existing_names},
+};
 use mongodb::{
     Client,
-    bson::{doc, to_bson},
+    bson::{Document, doc, to_bson},
 };
-use std::env;
+use std::{
+    env,
+    io::{self, Write},
+};
 
 pub async fn run(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-    println!("pushing");
+    println!("Pushing environment variables...");
 
     let path = env::current_dir()?;
     let project_name = path
@@ -20,36 +26,49 @@ pub async fn run(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
 
     let collection = client
         .database("sharenv_test")
-        .collection::<mongodb::bson::Document>("projects");
+        .collection::<Document>("projects");
 
     let project = collection
         .find_one(doc! { "name": &project_name })
         .await?
         .ok_or_else(|| format!("Project '{project_name}' does not exist in MongoDB"))?;
 
-    let environments = project
-        .get_array("environments")
-        .map_err(|_| "Project has no valid environments array")?;
+    // Verify both environments exist and collect their current variable names.
+    let dev_names = get_existing_names(&project, "dev")?;
+    let prod_names = get_existing_names(&project, "prod")?;
 
-    for env_name in ["dev", "prod"] {
-        let exists = environments.iter().any(|environment| {
-            environment
-                .as_document()
-                .and_then(|environment| environment.get_str("name").ok())
-                == Some(env_name)
-        });
+    let new_dev = find_new_variables(&dev_variables, &dev_names);
+    let new_prod = find_new_variables(&prod_variables, &prod_names);
 
-        if !exists {
-            return Err(format!(
-                "Environment '{env_name}' does not exist for project '{project_name}'"
-            )
-            .into());
+    if new_dev.is_empty() && new_prod.is_empty() {
+        println!("No new variables found.");
+    } else {
+        println!("\nNew variables to push:");
+
+        for variable in &new_dev {
+            println!("  [dev]  {}", variable.name);
+        }
+
+        for variable in &new_prod {
+            println!("  [prod] {}", variable.name);
+        }
+
+        print!("\nPush these changes? [y/N]: ");
+        io::stdout().flush()?;
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+
+        if !input.trim().eq_ignore_ascii_case("y") {
+            println!("Push cancelled.");
+            return Ok(());
         }
     }
 
+    // Sync the environment variables with MongoDB.
     collection
         .update_one(
-            doc! { "name": &project_name },
+            doc! { "_id": project.get_object_id("_id")? },
             doc! {
                 "$set": {
                     "environments.$[dev].variables": to_bson(&dev_variables)?,
