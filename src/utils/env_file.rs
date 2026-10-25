@@ -25,3 +25,16 @@ pub fn create_env_file(path: &str) -> io::Result<()> {
 
     Ok(())
 }
+
+pub fn get_env_name(file: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let name = std::path::Path::new(file)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or("Invalid environment filename")?;
+
+    let env_name = name
+        .strip_prefix(".env.")
+        .ok_or(format!("Invalid environment filename: {file}"))?;
+
+    Ok(env_name.to_string())
+}

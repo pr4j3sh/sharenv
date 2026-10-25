@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+config = { version = "0.15", features = ["toml"] }
 serde = "1.0.188"
 futures = "0.3.28"
 tokio = { version = "1.32.0", features = ["full"] }

@@ -3,11 +3,6 @@ use std::{error::Error, fs};
 
 pub fn read_env_file(path: &str) -> Result<Vec<EnvironmentVariable>, Box<dyn Error>> {
     let content = fs::read_to_string(path)?;
-
-    if content.trim().is_empty() {
-        return Err(format!("{path} is empty").into());
-    }
-
     let mut variables = Vec::new();
 
     for (index, line) in content.lines().enumerate() {
@@ -31,10 +26,6 @@ pub fn read_env_file(path: &str) -> Result<Vec<EnvironmentVariable>, Box<dyn Err
             name: name.to_string(),
             value: value.trim().to_string(),
         });
-    }
-
-    if variables.is_empty() {
-        return Err(format!("{path} contains no environment variables").into());
     }
 
     Ok(variables)

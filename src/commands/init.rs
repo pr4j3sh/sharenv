@@ -1,12 +1,15 @@
-use crate::models::{Environment, Project};
-use crate::utils::env_file::create_env_file;
+use crate::{
+    models::{Environment, Project},
+    settings::AppConfig,
+    utils::env_file::{create_env_file, get_env_name},
+};
 use mongodb::{
     Client,
     bson::{doc, to_document},
 };
 use std::env;
 
-pub async fn run(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run(client: &Client, config: &AppConfig) -> Result<(), Box<dyn std::error::Error>> {
     let path = env::current_dir()?;
     let cwd_name = path
         .file_name()
@@ -15,7 +18,7 @@ pub async fn run(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
         .to_string();
 
     let collection = client
-        .database("sharenv_test")
+        .database(&config.mongodb.database)
         .collection::<mongodb::bson::Document>("projects");
 
     if collection
@@ -26,21 +29,22 @@ pub async fn run(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
         return Err(format!("Project '{cwd_name}' already exists in the database").into());
     }
 
-    create_env_file(".env.dev")?;
-    create_env_file(".env.prod")?;
+    let mut environments = Vec::new();
+
+    for file in &config.environment_files.files {
+        create_env_file(file)?;
+
+        let env_name = get_env_name(file)?;
+
+        environments.push(Environment {
+            name: env_name,
+            variables: vec![],
+        });
+    }
 
     let project = Project {
         name: cwd_name.clone(),
-        environments: vec![
-            Environment {
-                name: "dev".to_string(),
-                variables: vec![],
-            },
-            Environment {
-                name: "prod".to_string(),
-                variables: vec![],
-            },
-        ],
+        environments,
     };
 
     collection.insert_one(to_document(&project)?).await?;

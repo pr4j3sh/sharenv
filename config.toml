@@ -1,0 +1,6 @@
+[mongodb]
+uri = "mongodb://localhost:27017"
+database = "sharenv_test"
+
+[environment_files]
+files = [".env.dev", ".env.prod", ".env.local"]

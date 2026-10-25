@@ -1,6 +1,10 @@
-use crate::utils::{
-    env_parser::read_env_file,
-    env_sync::{find_new_variables, get_existing_names},
+use crate::{
+    settings::AppConfig,
+    utils::{
+        env_file::get_env_name,
+        env_parser::read_env_file,
+        env_sync::{find_new_variables, get_existing_names},
+    },
 };
 use mongodb::{
     Client,
@@ -11,7 +15,7 @@ use std::{
     io::{self, Write},
 };
 
-pub async fn run(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run(client: &Client, config: &AppConfig) -> Result<(), Box<dyn std::error::Error>> {
     println!("Pushing environment variables...");
 
     let path = env::current_dir()?;
@@ -21,11 +25,8 @@ pub async fn run(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
         .to_string_lossy()
         .to_string();
 
-    let dev_variables = read_env_file(".env.dev")?;
-    let prod_variables = read_env_file(".env.prod")?;
-
     let collection = client
-        .database("sharenv_test")
+        .database(&config.mongodb.database)
         .collection::<Document>("projects");
 
     let project = collection
@@ -33,26 +34,42 @@ pub async fn run(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
         .await?
         .ok_or_else(|| format!("Project '{project_name}' does not exist in MongoDB"))?;
 
-    // Verify both environments exist and collect their current variable names.
-    let dev_names = get_existing_names(&project, "dev")?;
-    let prod_names = get_existing_names(&project, "prod")?;
+    let mut updates = Document::new();
+    let mut array_filters = Vec::new();
+    let mut has_new_variables = false;
 
-    let new_dev = find_new_variables(&dev_variables, &dev_names);
-    let new_prod = find_new_variables(&prod_variables, &prod_names);
+    for (index, file) in config.environment_files.files.iter().enumerate() {
+        let env_name = get_env_name(file)?;
+        let variables = read_env_file(file)?;
+        if variables.is_empty() {
+            println!("Skipping empty environment file: {file}");
+            continue;
+        }
+        let existing_names = get_existing_names(&project, &env_name)?;
 
-    if new_dev.is_empty() && new_prod.is_empty() {
-        println!("No new variables found.");
-    } else {
-        println!("\nNew variables to push:");
+        let new_variables = find_new_variables(&variables, &existing_names);
 
-        for variable in &new_dev {
-            println!("  [dev]  {}", variable.name);
+        if !new_variables.is_empty() {
+            has_new_variables = true;
+
+            for variable in new_variables {
+                println!("  [{env_name}] {}", variable.name);
+            }
         }
 
-        for variable in &new_prod {
-            println!("  [prod] {}", variable.name);
-        }
+        let filter_name = format!("env{index}");
 
+        updates.insert(
+            format!("environments.$[{filter_name}].variables"),
+            to_bson(&variables)?,
+        );
+
+        array_filters.push(doc! {
+            format!("{filter_name}.name"): &env_name
+        });
+    }
+
+    if has_new_variables {
         print!("\nPush these changes? [y/N]: ");
         io::stdout().flush()?;
 
@@ -63,23 +80,16 @@ pub async fn run(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
             println!("Push cancelled.");
             return Ok(());
         }
+    } else {
+        println!("No new variables found.");
     }
 
-    // Sync the environment variables with MongoDB.
     collection
         .update_one(
             doc! { "_id": project.get_object_id("_id")? },
-            doc! {
-                "$set": {
-                    "environments.$[dev].variables": to_bson(&dev_variables)?,
-                    "environments.$[prod].variables": to_bson(&prod_variables)?,
-                }
-            },
+            doc! { "$set": updates },
         )
-        .array_filters(vec![
-            doc! { "dev.name": "dev" },
-            doc! { "prod.name": "prod" },
-        ])
+        .array_filters(array_filters)
         .await?;
 
     println!("Project '{project_name}' pushed successfully!");

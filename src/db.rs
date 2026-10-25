@@ -1,11 +1,12 @@
+use crate::settings::AppConfig;
 use mongodb::{
     Client,
     bson::doc,
     options::{ClientOptions, ServerApi, ServerApiVersion},
 };
 
-pub async fn connect_db() -> mongodb::error::Result<Client> {
-    let uri = "mongodb://localhost:27017/sharenv_test";
+pub async fn connect_db(config: &AppConfig) -> mongodb::error::Result<Client> {
+    let uri = &config.mongodb.uri;
 
     let mut client_options = ClientOptions::parse(uri).await?;
 
@@ -16,7 +17,7 @@ pub async fn connect_db() -> mongodb::error::Result<Client> {
     let client = Client::with_options(client_options)?;
 
     client
-        .database("sharenv_test")
+        .database("admin")
         .run_command(doc! { "ping": 1 })
         .await?;
 

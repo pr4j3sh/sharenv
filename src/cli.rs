@@ -1,16 +1,18 @@
+use crate::{commands, settings::AppConfig};
 use mongodb::Client;
 
-use crate::commands;
-
-pub async fn run_cli(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_cli(
+    client: &Client,
+    config: &AppConfig,
+) -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
     let cmd = args.get(1).map(String::as_str).unwrap_or("");
 
     match cmd {
-        "init" | "i" => commands::init::run(client).await?,
-        "add" | "a" => commands::add::run(client).await?,
-        "push" => commands::push::run(client).await?,
-        "pull" => commands::pull::run(client).await?,
+        "init" | "i" => commands::init::run(client, config).await?,
+        "add" | "a" => commands::add::run(client, config).await?,
+        "push" => commands::push::run(client, config).await?,
+        "pull" => commands::pull::run(client, config).await?,
 
         "help" | "h" => {
             println!("sharenv - Manage your project environments\n");
