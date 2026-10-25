@@ -1,19 +1,14 @@
-use std::env;
+mod cli;
+mod commands;
+mod db;
+mod models;
+mod utils;
 
-fn main() -> std::io::Result<()> {
-    let args: Vec<String> = env::args().collect();
-    dbg!(&args);
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = db::connect_db().await?;
 
-    let cmd = args[1].clone();
-    println!("{}", cmd);
+    cli::run_cli(&client).await?;
 
-    if cmd == "init" || cmd == "i" {
-        println!("initializing");
-        let path = env::current_dir()?;
-        let cwd_name = path.file_name().unwrap_or_default().to_string_lossy();
-        println!("creating project {}", cwd_name);
-    } else if cmd == "add" || cmd == "a" {
-        println!("adding")
-    }
     Ok(())
 }
