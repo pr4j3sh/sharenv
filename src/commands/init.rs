@@ -1,15 +1,15 @@
-use crate::{
-    models::{Environment, Project},
-    settings::AppConfig,
-    utils::env_file::{create_env_file, get_env_name},
-};
-use mongodb::{
-    Client,
-    bson::{doc, to_document},
-};
 use std::env;
 
-pub async fn run(client: &Client, config: &AppConfig) -> Result<(), Box<dyn std::error::Error>> {
+use crate::{
+    api::client::ApiClient,
+    settings::AppConfig,
+    utils::{env_file::create_env_file, local_config, token, validation::validate_project_name},
+};
+
+pub async fn run(
+    config: &AppConfig,
+    name: Option<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let path = env::current_dir()?;
     let cwd_name = path
         .file_name()
@@ -17,39 +17,39 @@ pub async fn run(client: &Client, config: &AppConfig) -> Result<(), Box<dyn std:
         .to_string_lossy()
         .to_string();
 
-    let collection = client
-        .database(&config.mongodb.database)
-        .collection::<mongodb::bson::Document>("projects");
+    let project_name = name.unwrap_or(cwd_name);
+    validate_project_name(&project_name)?;
 
-    if collection
-        .find_one(doc! { "name": &cwd_name })
-        .await?
-        .is_some()
-    {
-        return Err(format!("Project '{cwd_name}' already exists in the database").into());
+    let token =
+        token::get_token(&config.auth)?.ok_or("not logged in; run 'sharenv login' first")?;
+    let client = ApiClient::new(config.api_config.base_url.clone()).with_token(token);
+
+    if local_config::load(config).is_err() {
+        local_config::save(config, "")?;
     }
 
-    let mut environments = Vec::new();
+    let project = client.create_project(project_name.clone()).await?;
+    local_config::save(config, &project.project_id)?;
 
-    for file in &config.environment_files.files {
-        create_env_file(file)?;
+    println!(
+        "Created project '{}' ({})",
+        project_name, project.project_id
+    );
 
-        let env_name = get_env_name(file)?;
+    for env in &config.environment_files.environments {
+        create_env_file(&format!(".env.{env}"))?;
 
-        environments.push(Environment {
-            name: env_name,
-            variables: vec![],
-        });
+        let environment = client
+            .create_environment(&project.project_id, env.clone())
+            .await?;
+
+        println!(
+            "Created environment '{env}' ({})",
+            environment.environment_id
+        );
     }
 
-    let project = Project {
-        name: cwd_name.clone(),
-        environments,
-    };
-
-    collection.insert_one(to_document(&project)?).await?;
-
-    println!("Project '{cwd_name}' initialized successfully!");
+    println!("Project '{project_name}' initialized successfully!");
 
     Ok(())
 }

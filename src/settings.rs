@@ -2,19 +2,37 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct AppConfig {
-    pub mongodb: MongoConfig,
-    pub environment_files: EnvironmentFiles,
+    pub api_config: ApiConfig,
+    #[serde(default)]
+    pub auth: AuthConfig,
+    pub environment_files: DefaultConfig,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct MongoConfig {
-    pub uri: String,
-    pub database: String,
+pub struct ApiConfig {
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct EnvironmentFiles {
-    pub files: Vec<String>,
+pub struct AuthConfig {
+    pub token_service: String,
+    pub token_account: String,
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            token_service: "sharenv".to_string(),
+            token_account: "default".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DefaultConfig {
+    pub environments: Vec<String>,
+    pub config_dir_name: String,
+    pub config_file_path: String,
 }
 
 impl AppConfig {

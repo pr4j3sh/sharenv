@@ -1,6 +1,11 @@
-[mongodb]
-uri = "mongodb://localhost:27017"
-database = "sharenv_test"
+[api_config]
+base_url = "http://localhost:8000"
+
+[auth]
+token_service = "sharenv"
+token_account = "default"
 
 [environment_files]
-files = [".env.dev", ".env.prod", ".env.local"]
+environments = ["dev", "prod", "local"]
+config_dir_name = ".sharenv"
+config_file_path = ".sharenv/config.toml"

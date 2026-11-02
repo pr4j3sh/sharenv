@@ -1,17 +1,23 @@
+mod api;
 mod cli;
 mod commands;
-mod db;
 mod models;
 mod settings;
 mod utils;
 use settings::AppConfig;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = AppConfig::load()?;
-    let client = db::connect_db(&config).await?;
+async fn main() {
+    if let Err(error) = run().await {
+        eprintln!("{error}");
+        std::process::exit(1);
+    }
+}
 
-    cli::run_cli(&client, &config).await?;
+async fn run() -> Result<(), Box<dyn std::error::Error>> {
+    let config = AppConfig::load()?;
+
+    cli::run_cli(&config).await?;
 
     Ok(())
 }

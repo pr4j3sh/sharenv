@@ -1,8 +1,6 @@
-use mongodb::Client;
-
 use crate::settings::AppConfig;
 
-pub async fn run(_client: &Client, _config: &AppConfig) -> Result<(), Box<dyn std::error::Error>> {
-    println!("pulling");
+pub async fn run(_config: &AppConfig) -> Result<(), Box<dyn std::error::Error>> {
+    println!("pull is not implemented yet");
     Ok(())
 }
