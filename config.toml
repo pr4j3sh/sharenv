@@ -1,6 +1,14 @@
 [api_config]
 base_url = "http://localhost:8000"
 
+[api_config.routes]
+register = "/v1/auth/register"
+login = "/v1/auth/login"
+projects = "/v1/project/"
+environments = "/v1/environment"
+variables = "/v1/variable"
+environment_name_param = "environment_name"
+
 [auth]
 token_service = "sharenv"
 token_account = "default"
@@ -9,3 +17,4 @@ token_account = "default"
 environments = ["dev", "prod", "local"]
 config_dir_name = ".sharenv"
 config_file_path = ".sharenv/config.toml"
+env_file_prefix = ".env"

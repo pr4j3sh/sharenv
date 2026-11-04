@@ -1,1 +1,52 @@
+use super::client::ApiClient;
+use crate::{
+    models::{CreateVariableModel, CreateVariableRequest, VariableModel},
+    utils::error::api_error,
+};
 
+impl ApiClient {
+    pub async fn get_variables(
+        &self,
+        environment_id: &str,
+    ) -> Result<Vec<VariableModel>, Box<dyn std::error::Error>> {
+        let mut request = self
+            .client
+            .get(self.resource(&self.routes.variables, environment_id));
+
+        if let Some(token) = &self.token {
+            request = request.bearer_auth(token);
+        }
+
+        let response = request.send().await?;
+
+        if !response.status().is_success() {
+            return Err(Box::new(api_error(response).await));
+        }
+
+        Ok(response.json::<Vec<VariableModel>>().await?)
+    }
+
+    pub async fn create_variable(
+        &self,
+        environment_id: &str,
+        name: String,
+        value: String,
+    ) -> Result<CreateVariableModel, Box<dyn std::error::Error>> {
+        let mut request = self
+            .client
+            .post(self.resource(&self.routes.variables, environment_id))
+            .json(&CreateVariableRequest { name, value });
+
+        if let Some(token) = &self.token {
+            request = request.bearer_auth(token);
+        }
+
+        let response = request.send().await?;
+
+        if !response.status().is_success() {
+            return Err(Box::new(api_error(response).await));
+        }
+
+        Ok(response.json::<CreateVariableModel>().await?)
+    }
+}

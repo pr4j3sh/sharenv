@@ -3,7 +3,11 @@ use std::env;
 use crate::{
     api::client::ApiClient,
     settings::AppConfig,
-    utils::{env_file::create_env_file, local_config, token, validation::validate_project_name},
+    utils::{
+        env_file::{create_env_file, env_file_path},
+        local_config, token,
+        validation::validate_project_name,
+    },
 };
 
 pub async fn run(
@@ -20,9 +24,13 @@ pub async fn run(
     let project_name = name.unwrap_or(cwd_name);
     validate_project_name(&project_name)?;
 
-    let token =
-        token::get_token(&config.auth)?.ok_or("not logged in; run 'sharenv login' first")?;
-    let client = ApiClient::new(config.api_config.base_url.clone()).with_token(token);
+    let token = token::get_token(&config.auth)?.ok_or_else(|| {
+        format!(
+            "not logged in; run '{} login' first",
+            env!("CARGO_PKG_NAME")
+        )
+    })?;
+    let client = ApiClient::new(&config.api_config).with_token(token);
 
     if local_config::load(config).is_err() {
         local_config::save(config, "")?;
@@ -37,7 +45,7 @@ pub async fn run(
     );
 
     for env in &config.environment_files.environments {
-        create_env_file(&format!(".env.{env}"))?;
+        create_env_file(&env_file_path(config, env))?;
 
         let environment = client
             .create_environment(&project.project_id, env.clone())

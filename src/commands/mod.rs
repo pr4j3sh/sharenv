@@ -1,4 +1,5 @@
 pub mod add;
+pub mod help;
 pub mod init;
 pub mod login;
 pub mod pull;
