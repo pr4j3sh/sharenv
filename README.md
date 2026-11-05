@@ -1,10 +1,8 @@
 # sharenv
 
-> manage and share `.env` variables securely
+A command-line tool to securely sync, manage, and share project environment variables. Connects to a self-hosted [sharenv-api](https://github.com/pr4j3sh/sharenv-api) server to keep environment configurations centralized and accessible.
 
-`sharenv` is a cli tool that allows you to sync project `.env` files to a
-remote server and share them securely with others.
-It uses [`pr4j3sh/sharenv-api`](https://github.com/pr4j3sh/sharenv-api) to manage this.
+It uses [`pr4j3sh/sharenv-api`](https://github.com/pr4j3sh/sharenv-api) server.
 
 ## Prerequisites
 
@@ -12,6 +10,8 @@ It uses [`pr4j3sh/sharenv-api`](https://github.com/pr4j3sh/sharenv-api) to manag
 - [`pr4j3sh/sharenv-api`](https://github.com/pr4j3sh/sharenv-api)
 
 ## Installation
+
+### Using Source
 
 - Clone the repository and build it:
 
@@ -48,7 +48,7 @@ cargo install --path .
 base_url = "https://sharenv.example.com"
 ```
 
-or override it with an environment variable:
+- or override it with an environment variable:
 
 ```bash
 SHARENV__API_CONFIG__BASE_URL=https://sharenv.example.com sharenv login
