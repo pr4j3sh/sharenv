@@ -61,7 +61,9 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
     })?;
     let client = ApiClient::new(&config.api_config).with_token(token);
 
-    let environments = client.get_environments(&project_id, &env_name).await?;
+    let environments = client
+        .get_environments(&project_id, Some(&env_name))
+        .await?;
     let environment = environments
         .into_iter()
         .find(|environment| environment.name == env_name)

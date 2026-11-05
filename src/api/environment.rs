@@ -8,15 +8,18 @@ impl ApiClient {
     pub async fn get_environments(
         &self,
         project_id: &str,
-        environment_name: &str,
+        environment_name: Option<&str>,
     ) -> Result<Vec<EnvironmentModel>, Box<dyn std::error::Error>> {
         let mut request = self
             .client
-            .get(self.resource(&self.routes.environments, project_id))
-            .query(&[(
+            .get(self.resource(&self.routes.environments, project_id));
+
+        if let Some(environment_name) = environment_name {
+            request = request.query(&[(
                 self.routes.environment_name_param.as_str(),
                 environment_name,
             )]);
+        }
 
         if let Some(token) = &self.token {
             request = request.bearer_auth(token);

@@ -1,10 +1,28 @@
 use super::client::ApiClient;
 use crate::{
-    models::{AddUserModel, AddUserRequest, CreateProjectModel, CreateProjectRequest},
+    models::{
+        AddUserModel, AddUserRequest, CreateProjectModel, CreateProjectRequest, ProjectModel,
+    },
     utils::error::api_error,
 };
 
 impl ApiClient {
+    pub async fn get_projects(&self) -> Result<Vec<ProjectModel>, Box<dyn std::error::Error>> {
+        let mut request = self.client.get(self.url(&self.routes.projects));
+
+        if let Some(token) = &self.token {
+            request = request.bearer_auth(token);
+        }
+
+        let response = request.send().await?;
+
+        if !response.status().is_success() {
+            return Err(Box::new(api_error(response).await));
+        }
+
+        Ok(response.json::<Vec<ProjectModel>>().await?)
+    }
+
     pub async fn create_project(
         &self,
         name: String,

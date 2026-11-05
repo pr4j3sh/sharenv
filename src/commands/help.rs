@@ -12,5 +12,7 @@ pub fn run() {
     println!("    push          Push variables for an environment [-e|--environment <env_name>]");
     println!("    pull          Pull variables for an environment [-e|--environment <env_name>]");
     println!("                  Use [-pid|--project_id <project_id>] to pull a shared project");
+    println!("    list, ls      List your projects or the current project's environments");
+    println!("                  Usage: list projects | list environments");
     println!("    help, h       Display this help message");
 }

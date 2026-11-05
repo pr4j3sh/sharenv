@@ -35,7 +35,7 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
     let client = ApiClient::new(&config.api_config).with_token(token);
 
     let environments = client
-        .get_environments(&local.project.id, &env_name)
+        .get_environments(&local.project.id, Some(&env_name))
         .await?;
     let environment = environments
         .into_iter()

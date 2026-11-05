@@ -68,6 +68,17 @@ pub struct CreateVariableModel {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct ProjectModel {
+    pub _id: String,
+    pub name: String,
+    pub user_id: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    #[serde(default)]
+    pub users: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct EnvironmentModel {
     pub _id: String,
     pub name: String,
