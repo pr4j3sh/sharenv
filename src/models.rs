@@ -31,6 +31,11 @@ pub struct CreateProjectRequest {
 }
 
 #[derive(Serialize, Debug)]
+pub struct AddUserRequest {
+    pub email: String,
+}
+
+#[derive(Serialize, Debug)]
 pub struct CreateEnvironmentRequest {
     pub name: String,
 }
@@ -43,6 +48,11 @@ pub struct CreateVariableRequest {
 
 #[derive(Deserialize, Debug)]
 pub struct CreateProjectModel {
+    pub project_id: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AddUserModel {
     pub project_id: String,
 }
 

@@ -18,7 +18,7 @@ pub async fn run_cli(config: &AppConfig) -> Result<(), Box<dyn std::error::Error
             let name = parse_name_arg(args.get(2..).unwrap_or(&[]))?;
             commands::init::run(config, name).await?
         }
-        "add" | "a" => commands::add::run(config).await?,
+        "add" | "a" => commands::add::run(config, args.get(2..).unwrap_or(&[])).await?,
         "push" => commands::push::run(config, args.get(2..).unwrap_or(&[])).await?,
         "pull" => commands::pull::run(config, args.get(2..).unwrap_or(&[])).await?,
         "help" | "h" | "--help" | "-h" => commands::help::run(),

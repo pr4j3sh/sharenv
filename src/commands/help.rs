@@ -8,8 +8,9 @@ pub fn run() {
     println!("    register, r   Register a new account");
     println!("    login, l      User login");
     println!("    init, i       Initialize a project [-n|--name <project_name>]");
-    println!("    add, a        Add an environment variable (not implemented)");
+    println!("    add, a        Share the current project with a user [-u|--user <email>]");
     println!("    push          Push variables for an environment [-e|--environment <env_name>]");
     println!("    pull          Pull variables for an environment [-e|--environment <env_name>]");
+    println!("                  Use [-pid|--project_id <project_id>] to pull a shared project");
     println!("    help, h       Display this help message");
 }

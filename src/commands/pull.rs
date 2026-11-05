@@ -4,7 +4,7 @@ use crate::{
     api::client::ApiClient,
     settings::AppConfig,
     utils::{
-        args::parse_value_arg,
+        args::{FlagSpec, parse_flags},
         env_changes::{ChangePlan, plan_changes},
         env_file::{env_file_path, write_env_changes},
         env_parser::read_env_file,
@@ -14,21 +14,44 @@ use crate::{
 };
 
 pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>> {
-    let env_name = parse_value_arg(args, "--environment", "-e", "environment name")?
+    let specs = [
+        FlagSpec {
+            key: "environment",
+            names: &["--environment", "-e"],
+            label: "environment name",
+        },
+        FlagSpec {
+            key: "project_id",
+            names: &["--pid", "--project_id", "-pid"],
+            label: "project id",
+        },
+    ];
+
+    let mut flags = parse_flags(args, &specs)?;
+
+    let env_name = flags
+        .remove("environment")
         .ok_or("missing --environment/-e <env_name>")?;
 
     validate_environment_name(&env_name)?;
 
-    let local = local_config::load(config)
-        .map_err(|_| format!("no {} found", config.environment_files.config_file_path))?;
+    let project_id = match flags.remove("project_id") {
+        Some(project_id) => project_id,
+        None => {
+            let local = local_config::load(config)
+                .map_err(|_| format!("no {} found", config.environment_files.config_file_path))?;
 
-    if local.project.id.is_empty() {
-        return Err(format!(
-            "project id is missing from {}",
-            config.environment_files.config_file_path
-        )
-        .into());
-    }
+            if local.project.id.is_empty() {
+                return Err(format!(
+                    "project id is missing from {}; pass --pid <project_id>",
+                    config.environment_files.config_file_path
+                )
+                .into());
+            }
+
+            local.project.id
+        }
+    };
 
     let token = token::get_token(&config.auth)?.ok_or_else(|| {
         format!(
@@ -38,9 +61,7 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
     })?;
     let client = ApiClient::new(&config.api_config).with_token(token);
 
-    let environments = client
-        .get_environments(&local.project.id, &env_name)
-        .await?;
+    let environments = client.get_environments(&project_id, &env_name).await?;
     let environment = environments
         .into_iter()
         .find(|environment| environment.name == env_name)
