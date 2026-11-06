@@ -39,12 +39,12 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
         Some(project_id) => project_id,
         None => {
             let local = local_config::load(config)
-                .map_err(|_| format!("no {} found", config.environment_files.config_file_path))?;
+                .map_err(|_| format!("no {} found", config.config_file_path))?;
 
             if local.project.id.is_empty() {
                 return Err(format!(
                     "project id is missing from {}; pass --pid <project_id>",
-                    config.environment_files.config_file_path
+                    config.config_file_path
                 )
                 .into());
             }

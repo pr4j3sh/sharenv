@@ -17,9 +17,9 @@ pub struct ProjectSection {
 }
 
 pub fn save(config: &AppConfig, project_id: &str) -> Result<(), Box<dyn Error>> {
-    fs::create_dir_all(&config.environment_files.config_dir_name)?;
+    fs::create_dir_all(&config.config_dir_name)?;
 
-    let path = Path::new(&config.environment_files.config_file_path);
+    let path = Path::new(&config.config_file_path);
 
     let mut local = load(config).unwrap_or_default();
     local.project.id = project_id.to_string();
@@ -31,7 +31,7 @@ pub fn save(config: &AppConfig, project_id: &str) -> Result<(), Box<dyn Error>> 
 
 #[allow(dead_code)]
 pub fn load(config: &AppConfig) -> Result<LocalConfig, Box<dyn Error>> {
-    let content = fs::read_to_string(&config.environment_files.config_file_path)?;
+    let content = fs::read_to_string(&config.config_file_path)?;
 
     Ok(toml::from_str(&content)?)
 }

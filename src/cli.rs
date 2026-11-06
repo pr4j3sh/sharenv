@@ -22,7 +22,7 @@ pub async fn run_cli(config: &AppConfig) -> Result<(), Box<dyn std::error::Error
         "push" => commands::push::run(config, args.get(2..).unwrap_or(&[])).await?,
         "pull" => commands::pull::run(config, args.get(2..).unwrap_or(&[])).await?,
         "list" | "ls" => commands::list::run(config, args.get(2..).unwrap_or(&[])).await?,
-        "help" | "h" | "--help" | "-h" => commands::help::run(),
+        "help" | "h" | "--help" | "-h" => commands::help::run(config),
 
         "" => println!(
             "Please provide a command. Run '{} --help' for usage.",

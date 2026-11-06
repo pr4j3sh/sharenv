@@ -10,15 +10,11 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
     let email =
         parse_value_arg(args, "--user", "-u", "email")?.ok_or("missing --user/-u <email>")?;
 
-    let local = local_config::load(config)
-        .map_err(|_| format!("no {} found", config.environment_files.config_file_path))?;
+    let local =
+        local_config::load(config).map_err(|_| format!("no {} found", config.config_file_path))?;
 
     if local.project.id.is_empty() {
-        return Err(format!(
-            "project id is missing from {}",
-            config.environment_files.config_file_path
-        )
-        .into());
+        return Err(format!("project id is missing from {}", config.config_file_path).into());
     }
 
     let token = token::get_token(&config.auth)?.ok_or_else(|| {

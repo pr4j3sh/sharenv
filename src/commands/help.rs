@@ -1,9 +1,12 @@
-pub fn run() {
+use crate::settings::AppConfig;
+
+pub fn run(config: &AppConfig) {
     let name = env!("CARGO_PKG_NAME");
 
     println!("{name} - Manage your project environments\n");
     println!("USAGE:");
     println!("    {name} <COMMAND>\n");
+    println!("    using config v{} \n", &config.config_version);
     println!("COMMANDS:");
     println!("    register, r   Register a new account");
     println!("    login, l      User login");

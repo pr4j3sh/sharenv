@@ -44,15 +44,11 @@ async fn list_projects(config: &AppConfig) -> Result<(), Box<dyn Error>> {
 }
 
 async fn list_environments(config: &AppConfig) -> Result<(), Box<dyn Error>> {
-    let local = local_config::load(config)
-        .map_err(|_| format!("no {} found", config.environment_files.config_file_path))?;
+    let local =
+        local_config::load(config).map_err(|_| format!("no {} found", config.config_file_path))?;
 
     if local.project.id.is_empty() {
-        return Err(format!(
-            "project id is missing from {}",
-            config.environment_files.config_file_path
-        )
-        .into());
+        return Err(format!("project id is missing from {}", config.config_file_path).into());
     }
 
     let client = client(config)?;
