@@ -19,15 +19,15 @@ pub fn env_file_path(config: &AppConfig, env_name: &str) -> String {
 
 pub fn create_env_file(path: &str) -> io::Result<()> {
     if Path::new(path).exists() {
-        if prompt::confirm(&format!("{path} already exists. Replace it? [y/N]: "))? {
+        if prompt::confirm(&format!("{path} file already exists. Replace it? [y/N]: "))? {
             File::create(path)?;
-            println!("Replaced {path}");
+            println!("Replaced {path} file");
         } else {
-            println!("Keeping existing {path}");
+            println!("Keeping existing {path} file");
         }
     } else {
         File::create(path)?;
-        println!("Created {path}");
+        println!("Created {path} file");
     }
 
     Ok(())

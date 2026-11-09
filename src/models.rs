@@ -46,8 +46,18 @@ pub struct CreateVariableRequest {
     pub value: String,
 }
 
+#[derive(Serialize, Debug)]
+pub struct UpdateVariableRequest {
+    pub value: String,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct CreateProjectModel {
+    pub project_id: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DeleteProjectModel {
     pub project_id: String,
 }
 
@@ -62,7 +72,18 @@ pub struct CreateEnvironmentModel {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct DeleteEnvironmentModel {
+    pub environment_id: String,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct CreateVariableModel {
+    #[allow(dead_code)]
+    pub variable_id: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct UpdateVariableModel {
     #[allow(dead_code)]
     pub variable_id: String,
 }

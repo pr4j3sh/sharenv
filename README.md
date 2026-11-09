@@ -69,18 +69,28 @@ Run this from inside the project you want to track:
 
 ```bash
 sharenv init                 # project name = current directory name
-sharenv init -n my-project   # or choose one explicitly
+sharenv init -p my-project   # or choose one explicitly
 ```
 
 ### 3. Push variables
 
-Fill in an env file, then upload it:
+Push one environment:
 
 ```bash
 sharenv push -e dev
 ```
 
-### 4. Share the project
+Or push every remote environment that has a matching `.env.<env>` file:
+
+```bash
+sharenv push
+```
+
+New variables are created. If a variable already exists remotely with a
+different value, `push` shows both values and asks whether to update the
+remote one.
+
+### 4. Share the project or add an environment
 
 Only the project owner can share it. Run this from the initialized project
 directory:
@@ -88,6 +98,15 @@ directory:
 ```bash
 sharenv add --user teammate@example.com
 ```
+
+Use `-e` to create another environment for the current project:
+
+```bash
+sharenv add -e staging
+```
+
+This creates the environment remotely and adds an empty `.env.staging` file if
+it does not exist yet.
 
 The command prints the project id returned by the API. Send that id to your
 teammate, and they can pull the variables without a local `.sharenv` config:
@@ -98,14 +117,43 @@ sharenv pull --pid <project_id> -e dev
 
 ### 5. Pull variables
 
+Pull one environment:
+
 ```bash
 sharenv pull -e dev
 ```
 
-By default `pull` reads the project id from `.sharenv/config.toml`. Pass
-`--pid <project_id>` to pull a project shared with you from any directory.
+Run `sharenv pull` without `-e` to pull all remote environments. By default
+`pull` reads the project id from `.sharenv/config.toml`. Pass
+`--pid <project_id>` to pull a shared project from any directory; without `-e`
+that pulls all of its environments too.
 
-### 6. Help
+### 6. List projects or environments
+
+```bash
+sharenv list projects       # ls p
+sharenv list environments   # ls e
+```
+
+`list environments` uses the project id from `.sharenv/config.toml`.
+
+### 7. Delete a project or environment
+
+Run this from the initialized project directory. All commands ask for
+confirmation; add `--yes` (or `-y`) to skip the prompt.
+
+```bash
+sharenv delete                   # current project (id from .sharenv/config.toml)
+sharenv delete -p my-project     # project by name
+sharenv delete -e dev            # one environment
+```
+
+Deleting the current project uses the id from `.sharenv/config.toml` and removes
+that local config on success. `-p/--project` deletes by name through the API; the
+local config is removed only if the deleted project id matches. Local
+`.env.<env>` files are left untouched.
+
+### 8. Help
 
 ```bash
 sharenv help      # h
@@ -120,14 +168,17 @@ sharenv --help    # -h
 | ---------- | ------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `register` | `r`                 | —                                                        | Register a new account.                                                                     |
 | `login`    | `l`                 | —                                                        | Log in.                                                                                     |
-| `init`     | `i`                 | `-n`, `--name <project>`                                 | Create the remote project and local `.env` files. Defaults to the current directory's name. |
-| `add`      | `a`                 | `-u`, `--user <email>`                                   | Share the current project with a user (owner only).                                         |
-| `push`     | —                   | `-e`, `--environment <env>`                              | Upload variables from `.env.<env>` to the server.                                           |
-| `pull`     | —                   | `-e`, `--environment <env>`, `-pid`, `--project_id <id>` | Download variables into `.env.<env>`, with confirmation prompts.                            |
+| `init`     | `i`                 | `-p`, `--project <project>`                              | Create the remote project and local `.env` files. Defaults to the current directory's name. |
+| `add`      | `a`                 | `-u`, `--user <email>` or `-e`, `--environment <env>`     | Share the current project with a user, or create an environment (owner only).                |
+| `push`     | —                   | `-e`, `--environment <env>`                              | Push one environment, or all environments with local `.env.<env>` files when `-e` is omitted. |
+| `pull`     | —                   | `-e`, `--environment <env>`, `-pid`, `--project_id <id>` | Pull one environment, or all environments when `-e` is omitted.                             |
+| `list`     | `ls`                | `projects`, `environments`                               | List your projects or the current project's environments.                                   |
+| `delete`   | `d`                 | `-p`, `--project <project>`, `-e`, `--environment <env>`, `-y`, `--yes` | Delete the current project, a project by name, or an environment.                    |
 | `help`     | `h`, `--help`, `-h` | —                                                        | Show help.                                                                                  |
 
 Flags accept both space-separated and `=` forms: `-e dev`, `--environment dev`,
-`--environment=dev`, `-e=dev`, `--pid=<project_id>`.
+`--environment=dev`, `-e=dev`, `-p my-project`, `--project=my-project`,
+`--pid=<project_id>`.
 
 ### Configuration (`config.toml`)
 

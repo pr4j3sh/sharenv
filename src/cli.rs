@@ -1,5 +1,5 @@
 use crate::api::client::ApiClient;
-use crate::{commands, settings::AppConfig, utils::args::parse_name_arg};
+use crate::{commands, settings::AppConfig, utils::args::parse_project_arg};
 
 pub async fn run_cli(config: &AppConfig) -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
@@ -15,13 +15,14 @@ pub async fn run_cli(config: &AppConfig) -> Result<(), Box<dyn std::error::Error
             commands::login::run(&client, config).await?
         }
         "init" | "i" => {
-            let name = parse_name_arg(args.get(2..).unwrap_or(&[]))?;
+            let name = parse_project_arg(args.get(2..).unwrap_or(&[]))?;
             commands::init::run(config, name).await?
         }
         "add" | "a" => commands::add::run(config, args.get(2..).unwrap_or(&[])).await?,
         "push" => commands::push::run(config, args.get(2..).unwrap_or(&[])).await?,
         "pull" => commands::pull::run(config, args.get(2..).unwrap_or(&[])).await?,
         "list" | "ls" => commands::list::run(config, args.get(2..).unwrap_or(&[])).await?,
+        "delete" | "d" => commands::delete::run(config, args.get(2..).unwrap_or(&[])).await?,
         "help" | "h" | "--help" | "-h" => commands::help::run(config),
 
         "" => println!(

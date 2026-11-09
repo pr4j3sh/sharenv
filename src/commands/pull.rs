@@ -2,6 +2,7 @@ use std::{collections::HashMap, error::Error, path::Path};
 
 use crate::{
     api::client::ApiClient,
+    models::EnvironmentModel,
     settings::AppConfig,
     utils::{
         args::{FlagSpec, parse_flags},
@@ -29,11 +30,11 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
 
     let mut flags = parse_flags(args, &specs)?;
 
-    let env_name = flags
-        .remove("environment")
-        .ok_or("missing --environment/-e <env_name>")?;
+    let env_name = flags.remove("environment");
 
-    validate_environment_name(&env_name)?;
+    if let Some(env_name) = &env_name {
+        validate_environment_name(env_name)?;
+    }
 
     let project_id = match flags.remove("project_id") {
         Some(project_id) => project_id,
@@ -61,17 +62,62 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
     })?;
     let client = ApiClient::new(&config.api_config).with_token(token);
 
-    let environments = client
-        .get_environments(&project_id, Some(&env_name))
-        .await?;
-    let environment = environments
-        .into_iter()
-        .find(|environment| environment.name == env_name)
-        .ok_or_else(|| format!("environment '{env_name}' not found"))?;
+    match env_name {
+        Some(env_name) => {
+            let environments = client
+                .get_environments(&project_id, Some(&env_name))
+                .await?;
+            let environment = environments
+                .into_iter()
+                .find(|environment| environment.name == env_name)
+                .ok_or_else(|| format!("environment '{env_name}' not found"))?;
 
+            pull_environment(config, &client, &environment).await
+        }
+        None => pull_all_environments(config, &client, &project_id).await,
+    }
+}
+
+async fn pull_all_environments(
+    config: &AppConfig,
+    client: &ApiClient,
+    project_id: &str,
+) -> Result<(), Box<dyn Error>> {
+    let environments = client.get_environments(project_id, None).await?;
+
+    if environments.is_empty() {
+        println!("No environments found.");
+        return Ok(());
+    }
+
+    let names = environments
+        .iter()
+        .map(|environment| environment.name.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    if !prompt::confirm(&format!("Pull all environments ({names})? [y/N]: "))? {
+        println!("Cancelled.");
+        return Ok(());
+    }
+
+    for environment in environments {
+        println!("Environment '{}':", environment.name);
+        pull_environment(config, client, &environment).await?;
+    }
+
+    Ok(())
+}
+
+async fn pull_environment(
+    config: &AppConfig,
+    client: &ApiClient,
+    environment: &EnvironmentModel,
+) -> Result<(), Box<dyn Error>> {
+    let env_name = &environment.name;
     let remote = client.get_variables(&environment._id).await?;
 
-    let path = env_file_path(config, &env_name);
+    let path = env_file_path(config, env_name);
     let existing = if Path::new(&path).exists() {
         read_env_file(&path).map_err(|error| format!("failed to read {path}: {error}"))?
     } else {

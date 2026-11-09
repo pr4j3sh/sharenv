@@ -1,6 +1,9 @@
 use super::client::ApiClient;
 use crate::{
-    models::{CreateVariableModel, CreateVariableRequest, VariableModel},
+    models::{
+        CreateVariableModel, CreateVariableRequest, UpdateVariableModel, UpdateVariableRequest,
+        VariableModel,
+    },
     utils::error::api_error,
 };
 
@@ -48,5 +51,28 @@ impl ApiClient {
         }
 
         Ok(response.json::<CreateVariableModel>().await?)
+    }
+
+    pub async fn update_variable(
+        &self,
+        variable_id: &str,
+        value: String,
+    ) -> Result<UpdateVariableModel, Box<dyn std::error::Error>> {
+        let mut request = self
+            .client
+            .put(self.resource(&self.routes.variables, variable_id))
+            .json(&UpdateVariableRequest { value });
+
+        if let Some(token) = &self.token {
+            request = request.bearer_auth(token);
+        }
+
+        let response = request.send().await?;
+
+        if !response.status().is_success() {
+            return Err(Box::new(api_error(response).await));
+        }
+
+        Ok(response.json::<UpdateVariableModel>().await?)
     }
 }

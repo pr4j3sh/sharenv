@@ -32,7 +32,25 @@ pub async fn run(
     })?;
     let client = ApiClient::new(&config.api_config).with_token(token);
 
-    if local_config::load(config).is_err() {
+    let local = local_config::load(config).ok();
+
+    if let Some(local_id) = local
+        .as_ref()
+        .map(|local| local.project.id.as_str())
+        .filter(|id| !id.is_empty())
+    {
+        let projects = client.get_projects().await?;
+
+        if let Some(project) = projects.into_iter().find(|project| project._id == local_id) {
+            println!(
+                "Project '{}' is already initialized ({})",
+                project.name, project._id
+            );
+            return Ok(());
+        }
+    }
+
+    if local.is_none() {
         local_config::save(config, "")?;
     }
 

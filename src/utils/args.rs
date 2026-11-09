@@ -77,6 +77,22 @@ pub fn parse_value_arg(
     Ok(parse_flags(args, &specs)?.remove("value"))
 }
 
-pub fn parse_name_arg(args: &[String]) -> Result<Option<String>, Box<dyn std::error::Error>> {
-    parse_value_arg(args, "--name", "-n", "project name")
+pub fn parse_project_arg(args: &[String]) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    parse_value_arg(args, "--project", "-p", "project name")
+}
+
+/// Remove boolean switches from `args` and report whether any were present.
+pub fn parse_switch(args: &[String], names: &[&str]) -> (Vec<String>, bool) {
+    let mut remaining = Vec::with_capacity(args.len());
+    let mut found = false;
+
+    for arg in args {
+        if names.contains(&arg.as_str()) {
+            found = true;
+        } else {
+            remaining.push(arg.clone());
+        }
+    }
+
+    (remaining, found)
 }

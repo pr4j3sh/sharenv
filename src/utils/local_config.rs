@@ -1,4 +1,4 @@
-use std::{error::Error, fs, path::Path};
+use std::{error::Error, fs, io, path::Path};
 
 use serde::{Deserialize, Serialize};
 
@@ -34,4 +34,21 @@ pub fn load(config: &AppConfig) -> Result<LocalConfig, Box<dyn Error>> {
     let content = fs::read_to_string(&config.config_file_path)?;
 
     Ok(toml::from_str(&content)?)
+}
+
+/// Remove the local project config, ignoring an already-missing file.
+pub fn remove(config: &AppConfig) -> Result<(), Box<dyn Error>> {
+    let path = Path::new(&config.config_file_path);
+
+    match fs::remove_file(path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    }
+
+    if let Some(parent) = path.parent() {
+        let _ = fs::remove_dir(parent);
+    }
+
+    Ok(())
 }

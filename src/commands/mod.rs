@@ -1,4 +1,5 @@
 pub mod add;
+pub mod delete;
 pub mod help;
 pub mod init;
 pub mod list;

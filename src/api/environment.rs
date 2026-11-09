@@ -1,6 +1,8 @@
 use super::client::ApiClient;
 use crate::{
-    models::{CreateEnvironmentModel, CreateEnvironmentRequest, EnvironmentModel},
+    models::{
+        CreateEnvironmentModel, CreateEnvironmentRequest, DeleteEnvironmentModel, EnvironmentModel,
+    },
     utils::error::api_error,
 };
 
@@ -55,5 +57,26 @@ impl ApiClient {
         }
 
         Ok(response.json::<CreateEnvironmentModel>().await?)
+    }
+
+    pub async fn delete_environment(
+        &self,
+        environment_id: &str,
+    ) -> Result<DeleteEnvironmentModel, Box<dyn std::error::Error>> {
+        let mut request = self
+            .client
+            .delete(self.resource(&self.routes.environments, environment_id));
+
+        if let Some(token) = &self.token {
+            request = request.bearer_auth(token);
+        }
+
+        let response = request.send().await?;
+
+        if !response.status().is_success() {
+            return Err(Box::new(api_error(response).await));
+        }
+
+        Ok(response.json::<DeleteEnvironmentModel>().await?)
     }
 }
