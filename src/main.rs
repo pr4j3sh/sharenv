@@ -15,9 +15,9 @@ async fn main() {
 }
 
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let config = AppConfig::load()?;
+    let mut config = AppConfig::load()?;
 
-    cli::run_cli(&config).await?;
+    cli::run_cli(&mut config).await?;
 
     Ok(())
 }

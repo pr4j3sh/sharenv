@@ -30,20 +30,20 @@ pub fn is_conflict_error(error: &(dyn Error + 'static)) -> bool {
 
 /// Pull a readable message out of an API error body.
 pub fn api_error_message(status: reqwest::StatusCode, body: &str) -> String {
-    if let Ok(value) = serde_json::from_str::<Value>(body) {
-        if let Some(detail) = value.get("detail") {
-            return match detail {
-                Value::String(message) => message.clone(),
-                other => other.to_string(),
-            };
+    let message = if let Ok(value) = serde_json::from_str::<Value>(body) {
+        match value.get("detail") {
+            Some(Value::String(message)) => message.clone(),
+            Some(other) => other.to_string(),
+            None if body.trim().is_empty() => status.to_string(),
+            None => body.to_string(),
         }
-    }
-
-    if body.trim().is_empty() {
+    } else if body.trim().is_empty() {
         status.to_string()
     } else {
         body.to_string()
-    }
+    };
+
+    crate::utils::output::sanitize(&message)
 }
 
 /// Consume a non-success response and return the status and readable message.

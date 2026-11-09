@@ -5,7 +5,9 @@ use crate::{
     settings::AppConfig,
     utils::{
         args::{FlagSpec, parse_flags, parse_switch},
-        local_config, prompt, token,
+        local_config,
+        output::sanitize,
+        prompt, token,
         validation::{validate_environment_name, validate_project_name},
     },
 };
@@ -45,7 +47,8 @@ async fn delete_current_project(config: &AppConfig, yes: bool) -> Result<(), Box
 
     if !yes
         && !prompt::confirm(&format!(
-            "Delete current project ({project_id}) and all its environments/variables? [y/N]: "
+            "Delete current project ({}) and all its environments/variables? [y/N]: ",
+            sanitize(&project_id)
         ))?
     {
         println!("Cancelled.");
@@ -62,7 +65,10 @@ async fn delete_current_project(config: &AppConfig, yes: bool) -> Result<(), Box
         )
     })?;
 
-    println!("Deleted current project ({}).", deleted.project_id);
+    println!(
+        "Deleted current project ({}).",
+        sanitize(&deleted.project_id)
+    );
 
     Ok(())
 }
@@ -76,7 +82,8 @@ async fn delete_project_by_name(
 
     if !yes
         && !prompt::confirm(&format!(
-            "Delete project '{project_name}' and all its environments/variables? [y/N]: "
+            "Delete project '{}' and all its environments/variables? [y/N]: ",
+            sanitize(project_name)
         ))?
     {
         println!("Cancelled.");
@@ -100,7 +107,11 @@ async fn delete_project_by_name(
         })?;
     }
 
-    println!("Deleted project '{project_name}' ({}).", deleted.project_id);
+    println!(
+        "Deleted project '{}' ({}).",
+        sanitize(project_name),
+        sanitize(&deleted.project_id)
+    );
 
     Ok(())
 }
@@ -124,8 +135,9 @@ async fn delete_environment(
 
     if !yes
         && !prompt::confirm(&format!(
-            "Delete environment '{environment_name}' ({}) and all its variables? [y/N]: ",
-            environment._id
+            "Delete environment '{}' ({}) and all its variables? [y/N]: ",
+            sanitize(environment_name),
+            sanitize(&environment._id)
         ))?
     {
         println!("Cancelled.");
@@ -135,8 +147,9 @@ async fn delete_environment(
     let deleted = client.delete_environment(&environment._id).await?;
 
     println!(
-        "Deleted environment '{environment_name}' ({}).",
-        deleted.environment_id
+        "Deleted environment '{}' ({}).",
+        sanitize(environment_name),
+        sanitize(&deleted.environment_id)
     );
 
     Ok(())
@@ -166,5 +179,5 @@ fn client(config: &AppConfig) -> Result<ApiClient, Box<dyn Error>> {
         )
     })?;
 
-    Ok(ApiClient::new(&config.api_config).with_token(token))
+    Ok(ApiClient::new(&config.api_config)?.with_token(token))
 }

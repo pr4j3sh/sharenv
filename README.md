@@ -33,15 +33,18 @@ cargo build --release
 cargo install --path .
 ```
 
-> **Important:** `config.toml` is loaded from the **current working directory**.
-> Run the binary from the cloned repository (which ships a `config.toml`), or
-> place your own `config.toml` in whatever directory you run it from.
+> **Important:** the global `config.toml` lives in your OS config directory
+> (`~/.config/sharenv/config.toml` on Linux) and is created automatically from
+> the defaults embedded at build time. Editing the repository's root
+> `config.toml` only changes those defaults after a rebuild. Project-specific
+> state lives in `.sharenv/config.toml` in the current directory.
 
 ### Setting Up Backend
 
 - Follow the instructions to setup [`pr4j3sh/sharenv-api`](https://github.com/pr4j3sh/sharenv-api)
 
-- Edit `config.toml` and change `base_url`:
+- Edit the global `config.toml` (or set the environment override below) and
+  change `base_url`:
 
 ```toml
 [api_config]
@@ -87,8 +90,11 @@ sharenv push
 ```
 
 New variables are created. If a variable already exists remotely with a
-different value, `push` shows both values and asks whether to update the
-remote one.
+different value, `push` asks whether to update the remote one. Values are
+hidden by default; pass `--show-values` to print sanitized values.
+
+`push` shows the destination project and owner first. Pushing to a project you
+do not own always asks for confirmation.
 
 ### 4. Share the project or add an environment
 
@@ -128,6 +134,10 @@ Run `sharenv pull` without `-e` to pull all remote environments. By default
 `--pid <project_id>` to pull a shared project from any directory; without `-e`
 that pulls all of its environments too.
 
+You must be a member of the project to pull it. The CLI resolves the project
+from the server first and refuses non-members before fetching any variables.
+Values are hidden by default; pass `--show-values` to print them.
+
 ### 6. List projects or environments
 
 ```bash
@@ -160,6 +170,24 @@ sharenv help      # h
 sharenv --help    # -h
 ```
 
+## Security
+
+`sharenv` is not end-to-end encrypted: values are sent to the API, which
+decrypts them, and local `.env.*` files are plaintext. Read
+[`docs/security.md`](docs/security.md) for the full trust model and limitations.
+
+Key behaviors:
+
+- Non-loopback `http://` URLs are refused unless you pass `--insecure` for that
+  invocation. The default `http://localhost:8000` is allowed for local
+  development.
+- `push`/`pull` hide values by default. `--show-values` prints sanitized values
+  for that run.
+- The project name and owner are shown before transfers. Pushing to a project
+  you do not own requires confirmation.
+- `pull` requires project membership and refuses non-members before fetching
+  variables.
+
 ## Reference
 
 ### Commands
@@ -168,10 +196,10 @@ sharenv --help    # -h
 | ---------- | ------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `register` | `r`                 | —                                                        | Register a new account.                                                                     |
 | `login`    | `l`                 | —                                                        | Log in.                                                                                     |
-| `init`     | `i`                 | `-p`, `--project <project>`                              | Create the remote project and local `.env` files. Defaults to the current directory's name. |
+| `init`     | `i`                 | `-p`, `--project <project>`, `--adopt`                   | Create the remote project and local `.env` files. Defaults to the current directory's name. `--adopt` records identity for an existing project. |
 | `add`      | `a`                 | `-u`, `--user <email>` or `-e`, `--environment <env>`     | Share the current project with a user, or create an environment (owner only).                |
-| `push`     | —                   | `-e`, `--environment <env>`                              | Push one environment, or all environments with local `.env.<env>` files when `-e` is omitted. |
-| `pull`     | —                   | `-e`, `--environment <env>`, `-pid`, `--project_id <id>` | Pull one environment, or all environments when `-e` is omitted.                             |
+| `push`     | —                   | `-e`, `--environment <env>`, `--show-values`             | Push one environment, or all environments with local `.env.<env>` files when `-e` is omitted. Values are hidden unless `--show-values`. |
+| `pull`     | —                   | `-e`, `--environment <env>`, `-pid`, `--project_id <id>`, `--show-values` | Pull one environment, or all environments when `-e` is omitted. Requires project membership. |
 | `list`     | `ls`                | `projects`, `environments`                               | List your projects or the current project's environments.                                   |
 | `delete`   | `d`                 | `-p`, `--project <project>`, `-e`, `--environment <env>`, `-y`, `--yes` | Delete the current project, a project by name, or an environment.                    |
 | `help`     | `h`, `--help`, `-h` | —                                                        | Show help.                                                                                  |
@@ -182,7 +210,14 @@ Flags accept both space-separated and `=` forms: `-e dev`, `--environment dev`,
 
 ### Configuration (`config.toml`)
 
+The global file is at `~/.config/sharenv/config.toml` on Linux. The repository's
+root `config.toml` only provides the defaults embedded at build time.
+
 ```toml
+config_version = 1
+config_dir_name = ".sharenv"
+config_file_path = ".sharenv/config.toml"
+
 [api_config]
 base_url = "http://localhost:8000"
 
@@ -200,10 +235,12 @@ token_account = "default"   # keyring account name
 
 [environment_files]
 environments = ["dev", "prod", "local"]   # one .env.<name> per entry
-config_dir_name = ".sharenv"
-config_file_path = ".sharenv/config.toml"
 env_file_prefix = ".env"
 ```
+
+Non-HTTPS URLs are rejected unless the host is loopback. Use `--insecure` on a
+single command to override that check; it cannot be stored in config or in an
+environment variable.
 
 Scalar values can be overridden with environment variables using the `SHARENV`
 prefix and `__` as the nesting separator. The assignment goes before the

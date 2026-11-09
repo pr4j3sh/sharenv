@@ -15,19 +15,28 @@ finish it.
 
 Decide what the CLI promises before changing behavior.
 
-- [ ] **P0 — Document the trust model.** Add `docs/security.md`: the CLI sends
+Settled decisions:
+
+- Values are hidden by default; `--show-values` prints full sanitized values.
+- Non-loopback `http://` is refused; `--insecure` is per-invocation only and
+  cannot be persisted in config or environment variables.
+- Push to a project the user does not own always confirms. Pull requires
+  membership; non-members are refused before any variable is fetched.
+- Local project identity is advisory. `init` records it and `init --adopt`
+  records it for an existing project.
+
+- [x] **P0 — Document the trust model.** Add `docs/security.md`: the CLI sends
       plaintext values to the API; the server decrypts; the OS keyring holds the
       token; local `.env.*` files are plaintext. State that a compromised server
       or stolen token exposes all values.
-- [ ] **P0 — Decide the default for secret display.** Recommendation: never
-      print values by default; print names and `(changed)` markers, with an
-      explicit `--show-values` flag.
-- [ ] **P0 — Decide the default for non-HTTPS URLs.** Recommendation: refuse
-      non-HTTPS unless the host is `localhost`/`127.0.0.1`, with an explicit
-      `--insecure` escape hatch.
-- [ ] **P1 — Define a "safe project" check.** Before push/pull, show the
-      project name and owner and warn when the owner is not the current user or
-      when the local config was not created by `init`.
+- [x] **P0 — Decide the default for secret display.** Never print values by
+      default; print names and `(changed)` markers, with an explicit
+      `--show-values` flag.
+- [x] **P0 — Decide the default for non-HTTPS URLs.** Refuse non-HTTPS unless
+      the host is loopback, with a per-invocation `--insecure` escape hatch.
+- [x] **P1 — Define a "safe project" check.** Before push/pull, show the
+      project name and owner, warn when the owner is not the current user or
+      when local identity metadata is missing, and require membership for pull.
 
 ---
 
@@ -122,15 +131,16 @@ Current code: `src/utils/env_file.rs`, `src/utils/local_config.rs`,
 Current code: `src/commands/push.rs`, `src/commands/pull.rs`,
 `src/utils/env_changes.rs`.
 
-- [ ] **P0 — Stop printing secret values by default.** `push` prints
+- [x] **P0 — Stop printing secret values by default.** `push` prints
       `remote:`/`local:` values (`push.rs:139-141`); `pull` prints every new and
       changed value (`pull.rs:140-142,154-156`). Print only names and change
       type. Add `--show-values` for explicit reveal.
-- [ ] **P0 — Sanitize all remote/local strings before printing.** Strip ANSI
+- [x] **P0 — Sanitize all remote/local strings before printing.** Strip ANSI
       escapes, `\r`, and other control characters to prevent terminal escape
       injection. Apply to values, names, error bodies, and project/env names.
-- [ ] **P1 — Mask values in `--show-values` mode** by default (e.g. first/last
-      two characters) unless `--reveal` is also passed.
+- [x] ~~**P1 — Mask values in `--show-values` mode** by default (e.g. first/last
+      two characters) unless `--reveal` is also passed.~~ Superseded by the
+      section 1 decision: `--show-values` prints full sanitized values.
 - [ ] **P1 — Avoid writing secrets to shell history.** Do not accept secret
       values as command-line arguments; keep reading them from files/prompts.
 - [ ] **P1 — Add a `--quiet`/`--json` mode** so CI can avoid values in logs and
@@ -180,18 +190,19 @@ This is the highest-impact CLI gap: a planted `.sharenv/config.toml` plus an
 unconsented project membership can make `push` upload the victim's secrets to an
 attacker's project.
 
-- [ ] **P0 — Show the project name and owner before push/pull.** Fetch the
+- [x] **P0 — Show the project name and owner before push/pull.** Fetch the
       project metadata and print `Project: <name> (owner: <id/email>)` before
       any confirmation. Require an explicit `y` for pushes to a project the
       current user does not own.
-- [ ] **P0 — Store project name/owner in `.sharenv/config.toml`** at `init`
+- [x] **P0 — Store project name/owner in `.sharenv/config.toml`** at `init`
       time. On later commands, compare the stored identity with the server
-      response and refuse to push if the owner changed or is unknown.
+      response and refuse to push if the owner changed; require confirmation
+      when it is unknown.
 - [ ] **P0 — Treat a pre-existing `.sharenv/config.toml` as untrusted.**
       `init` currently says "already initialized" for any project the user is a
       member of (`init.rs:35-50`), including an attacker's project. Add a
       warning and require `--adopt` to reuse an existing config.
-- [ ] **P0 — Require confirmation that names the destination project** for
+- [x] **P0 — Require confirmation that names the destination project** for
       `push` and `pull --pid`. Do not rely on environment names alone.
 - [ ] **P0 — Add a `status`/`inspect` command** that prints project ID, name,
       owner, role, environments, and local file paths without printing values.
@@ -199,9 +210,9 @@ attacker's project.
       user**, and show a diff summary before writing.
 - [ ] **P1 — Warn when `init` creates files in a git repo that does not ignore
       `.env*`** (see section 8).
-- [ ] **P1 — Add `--project-id` validation** so `pull --pid` cannot be pointed at
+- [x] **P1 — Add `--project-id` validation** so `pull --pid` cannot be pointed at
       an arbitrary ID silently; show the resolved project name first.
-- [ ] **P2 — Record the server `base_url` in the local config** and warn if it
+- [x] **P2 — Record the server `base_url` in the local config** and warn if it
       changes between pushes.
 
 ---
@@ -271,7 +282,7 @@ Current code: `src/utils/error.rs`, `src/commands/*`, `src/main.rs`.
 - [ ] **P0 — Add secret scanning** (gitleaks/trufflehog) to CI/pre-commit.
 - [ ] **P0 — Add dependency auditing** (`cargo audit`) and keep `reqwest`,
       `keyring`, and `tokio` current.
-- [ ] **P1 — Add a SECURITY.md** with a disclosure contact and supported
+- [x] **P1 — Add a SECURITY.md** with a disclosure contact and supported
       versions.
 - [ ] **P1 — Add a security section to the README** covering HTTPS, file
       permissions, `.gitignore`, and token storage.

@@ -5,17 +5,17 @@ pub fn run(config: &AppConfig) {
 
     println!("{name} - Manage your project environments\n");
     println!("USAGE:");
-    println!("    {name} <COMMAND>\n");
+    println!("    {name} <COMMAND> [OPTIONS]\n");
     println!("    using config v{} \n", &config.config_version);
     println!("COMMANDS:");
     println!("    register, r   Register a new account");
     println!("    login, l      User login");
-    println!("    init, i       Initialize a project [-p|--project <project_name>]");
+    println!("    init, i       Initialize a project [-p|--project <project_name>] [--adopt]");
     println!("    add, a        Share the current project with a user [-u|--user <email>]");
     println!("                  Create an environment [-e|--environment <env_name>]");
-    println!("    push          Push variables [-e|--environment <env_name>]");
+    println!("    push          Push variables [-e|--environment <env_name>] [--show-values]");
     println!("                  Omit -e to push all environments with local .env files");
-    println!("    pull          Pull variables [-e|--environment <env_name>]");
+    println!("    pull          Pull variables [-e|--environment <env_name>] [--show-values]");
     println!("                  Omit -e to pull all environments");
     println!("                  Use [-pid|--project_id <project_id>] to pull a shared project");
     println!("    list, ls      List your projects or the current project's environments");
@@ -27,4 +27,11 @@ pub fn run(config: &AppConfig) {
         "                  Usage: delete | delete -p|--project <project_name> | delete -e|--environment <env_name>"
     );
     println!("    help, h       Display this help message");
+    println!();
+    println!("GLOBAL OPTIONS:");
+    println!("    --insecure    Allow plaintext HTTP to a non-local host (not recommended)");
+    println!();
+    println!("OUTPUT:");
+    println!("    Variable values are hidden by default. Pass --show-values to reveal");
+    println!("    sanitized values when pushing or pulling.");
 }

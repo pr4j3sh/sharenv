@@ -5,16 +5,21 @@ use crate::{
     models::EnvironmentModel,
     settings::AppConfig,
     utils::{
-        args::{FlagSpec, parse_flags},
+        args::{FlagSpec, parse_flags, parse_switch},
         env_changes::{ChangePlan, plan_changes},
         env_file::{env_file_path, write_env_changes},
         env_parser::read_env_file,
-        local_config, prompt, token,
+        jwt, local_config,
+        output::sanitize,
+        project_guard::{self, Access},
+        prompt, token,
         validation::validate_environment_name,
     },
 };
 
 pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>> {
+    let (args, show_values) = parse_switch(args, &["--show-values"]);
+
     let specs = [
         FlagSpec {
             key: "environment",
@@ -28,7 +33,7 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
         },
     ];
 
-    let mut flags = parse_flags(args, &specs)?;
+    let mut flags = parse_flags(&args, &specs)?;
 
     let env_name = flags.remove("environment");
 
@@ -60,7 +65,23 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
             env!("CARGO_PKG_NAME")
         )
     })?;
-    let client = ApiClient::new(&config.api_config).with_token(token);
+    let current_user = jwt::subject(&token);
+    let client = ApiClient::new(&config.api_config)?.with_token(token);
+
+    // `GET /project/` only lists owned or shared projects, so this refuses
+    // non-members before any variable is fetched.
+    if project_guard::authorize(
+        config,
+        &client,
+        current_user.as_deref(),
+        &project_id,
+        Access::Pull,
+    )
+    .await?
+    .is_none()
+    {
+        return Ok(());
+    }
 
     match env_name {
         Some(env_name) => {
@@ -72,9 +93,9 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
                 .find(|environment| environment.name == env_name)
                 .ok_or_else(|| format!("environment '{env_name}' not found"))?;
 
-            pull_environment(config, &client, &environment).await
+            pull_environment(config, &client, &environment, show_values).await
         }
-        None => pull_all_environments(config, &client, &project_id).await,
+        None => pull_all_environments(config, &client, &project_id, show_values).await,
     }
 }
 
@@ -82,6 +103,7 @@ async fn pull_all_environments(
     config: &AppConfig,
     client: &ApiClient,
     project_id: &str,
+    show_values: bool,
 ) -> Result<(), Box<dyn Error>> {
     let environments = client.get_environments(project_id, None).await?;
 
@@ -92,7 +114,7 @@ async fn pull_all_environments(
 
     let names = environments
         .iter()
-        .map(|environment| environment.name.as_str())
+        .map(|environment| sanitize(&environment.name))
         .collect::<Vec<_>>()
         .join(", ");
 
@@ -102,8 +124,8 @@ async fn pull_all_environments(
     }
 
     for environment in environments {
-        println!("Environment '{}':", environment.name);
-        pull_environment(config, client, &environment).await?;
+        println!("Environment '{}':", sanitize(&environment.name));
+        pull_environment(config, client, &environment, show_values).await?;
     }
 
     Ok(())
@@ -113,11 +135,12 @@ async fn pull_environment(
     config: &AppConfig,
     client: &ApiClient,
     environment: &EnvironmentModel,
+    show_values: bool,
 ) -> Result<(), Box<dyn Error>> {
-    let env_name = &environment.name;
+    let env_name = sanitize(&environment.name);
     let remote = client.get_variables(&environment._id).await?;
 
-    let path = env_file_path(config, env_name);
+    let path = env_file_path(config, &environment.name);
     let existing = if Path::new(&path).exists() {
         read_env_file(&path).map_err(|error| format!("failed to read {path}: {error}"))?
     } else {
@@ -139,7 +162,13 @@ async fn pull_environment(
     if !new_variables.is_empty() {
         println!("New variables:");
         for variable in &new_variables {
-            println!("  + {}={}", variable.name, variable.value);
+            let name = sanitize(&variable.name);
+
+            if show_values {
+                println!("  + {name}={}", sanitize(&variable.value));
+            } else {
+                println!("  + {name}");
+            }
         }
 
         if prompt::confirm("Add these variables? [y/N]: ")? {
@@ -151,11 +180,15 @@ async fn pull_environment(
     let mut kept = 0;
 
     for change in changed_variables {
-        println!("{} changed:", change.name);
-        println!("  current: {}", change.current);
-        println!("  remote:  {}", change.remote);
+        let name = sanitize(&change.name);
+        println!("{name} changed:");
 
-        if prompt::confirm(&format!("Replace value for '{}'? [y/N]: ", change.name))? {
+        if show_values {
+            println!("  current: {}", sanitize(&change.current));
+            println!("  remote:  {}", sanitize(&change.remote));
+        }
+
+        if prompt::confirm(&format!("Replace value for '{name}'? [y/N]: "))? {
             updates.insert(change.name, change.remote);
         } else {
             kept += 1;

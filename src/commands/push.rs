@@ -5,14 +5,21 @@ use crate::{
     models::EnvironmentModel,
     settings::AppConfig,
     utils::{
-        args::parse_value_arg, env_file::env_file_path, env_parser::read_env_file,
-        error::is_conflict_error, local_config, prompt, token,
+        args::{parse_switch, parse_value_arg},
+        env_file::env_file_path,
+        env_parser::read_env_file,
+        error::is_conflict_error,
+        jwt, local_config,
+        output::sanitize,
+        project_guard::{self, Access},
+        prompt, token,
         validation::validate_environment_name,
     },
 };
 
 pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>> {
-    let env_name = parse_value_arg(args, "--environment", "-e", "environment name")?;
+    let (args, show_values) = parse_switch(args, &["--show-values"]);
+    let env_name = parse_value_arg(&args, "--environment", "-e", "environment name")?;
 
     if let Some(env_name) = &env_name {
         validate_environment_name(env_name)?;
@@ -31,7 +38,21 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
             env!("CARGO_PKG_NAME")
         )
     })?;
-    let client = ApiClient::new(&config.api_config).with_token(token);
+    let current_user = jwt::subject(&token);
+    let client = ApiClient::new(&config.api_config)?.with_token(token);
+
+    if project_guard::authorize(
+        config,
+        &client,
+        current_user.as_deref(),
+        &local.project.id,
+        Access::Push,
+    )
+    .await?
+    .is_none()
+    {
+        return Ok(());
+    }
 
     match env_name {
         Some(env_name) => {
@@ -43,9 +64,9 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
                 .find(|environment| environment.name == env_name)
                 .ok_or_else(|| format!("environment '{env_name}' not found"))?;
 
-            push_environment(config, &client, &environment).await
+            push_environment(config, &client, &environment, show_values).await
         }
-        None => push_all_environments(config, &client, &local.project.id).await,
+        None => push_all_environments(config, &client, &local.project.id, show_values).await,
     }
 }
 
@@ -53,6 +74,7 @@ async fn push_all_environments(
     config: &AppConfig,
     client: &ApiClient,
     project_id: &str,
+    show_values: bool,
 ) -> Result<(), Box<dyn Error>> {
     let environments = client.get_environments(project_id, None).await?;
 
@@ -63,7 +85,7 @@ async fn push_all_environments(
 
     let names = environments
         .iter()
-        .map(|environment| environment.name.as_str())
+        .map(|environment| sanitize(&environment.name))
         .collect::<Vec<_>>()
         .join(", ");
 
@@ -76,12 +98,15 @@ async fn push_all_environments(
         let path = env_file_path(config, &environment.name);
 
         if !Path::new(&path).exists() {
-            println!("Skipping '{}': {path} not found", environment.name);
+            println!(
+                "Skipping '{}': {path} not found",
+                sanitize(&environment.name)
+            );
             continue;
         }
 
-        println!("Environment '{}':", environment.name);
-        push_environment(config, client, &environment).await?;
+        println!("Environment '{}':", sanitize(&environment.name));
+        push_environment(config, client, &environment, show_values).await?;
     }
 
     Ok(())
@@ -91,7 +116,9 @@ async fn push_environment(
     config: &AppConfig,
     client: &ApiClient,
     environment: &EnvironmentModel,
+    show_values: bool,
 ) -> Result<(), Box<dyn Error>> {
+    let env_display = sanitize(&environment.name);
     let path = env_file_path(config, &environment.name);
     let variables =
         read_env_file(&path).map_err(|error| format!("failed to read {path}: {error}"))?;
@@ -114,6 +141,8 @@ async fn push_environment(
     let mut kept = 0;
 
     for variable in variables {
+        let name = sanitize(&variable.name);
+
         match remote_by_name.remove(&variable.name) {
             None => match client
                 .create_variable(&environment._id, variable.name.clone(), variable.value)
@@ -121,49 +150,46 @@ async fn push_environment(
             {
                 Ok(_) => {
                     created += 1;
-                    println!("+ {}", variable.name);
+                    println!("+ {name}");
                 }
                 Err(error) if is_conflict_error(error.as_ref()) => {
                     skipped += 1;
-                    println!("= {} already exists, skipped", variable.name);
+                    println!("= {name} already exists, skipped");
                 }
                 Err(error) => {
-                    return Err(format!("failed to push '{}': {error}", variable.name).into());
+                    return Err(format!("failed to push '{name}': {error}").into());
                 }
             },
             Some(remote) if remote.value == variable.value => {
                 unchanged += 1;
-                println!("= {} unchanged", variable.name);
+                println!("= {name} unchanged");
             }
             Some(remote) => {
-                println!("{} changed:", variable.name);
-                println!("  remote: {}", remote.value);
-                println!("  local:  {}", variable.value);
+                println!("{name} changed:");
 
-                if prompt::confirm(&format!(
-                    "Update remote value for '{}'? [y/N]: ",
-                    variable.name
-                ))? {
+                if show_values {
+                    println!("  remote: {}", sanitize(&remote.value));
+                    println!("  local:  {}", sanitize(&variable.value));
+                }
+
+                if prompt::confirm(&format!("Update remote value for '{name}'? [y/N]: "))? {
                     client
                         .update_variable(&remote._id, variable.value.clone())
                         .await
-                        .map_err(|error| {
-                            format!("failed to update '{}': {error}", variable.name)
-                        })?;
+                        .map_err(|error| format!("failed to update '{name}': {error}"))?;
                     updated += 1;
-                    println!("~ {} updated", variable.name);
+                    println!("~ {name} updated");
                 } else {
                     kept += 1;
-                    println!("= {} kept remote value", variable.name);
+                    println!("= {name} kept remote value");
                 }
             }
         }
     }
 
     println!(
-        "Pushed to '{}': {created} created, {updated} updated, \
-         {unchanged} unchanged, {skipped} skipped, {kept} kept",
-        environment.name
+        "Pushed to '{env_display}': {created} created, {updated} updated, \
+         {unchanged} unchanged, {skipped} skipped, {kept} kept"
     );
 
     Ok(())

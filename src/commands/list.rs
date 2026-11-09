@@ -3,7 +3,7 @@ use std::error::Error;
 use crate::{
     api::client::ApiClient,
     settings::AppConfig,
-    utils::{local_config, token},
+    utils::{local_config, output::sanitize, token},
 };
 
 pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>> {
@@ -35,7 +35,7 @@ async fn list_projects(config: &AppConfig) -> Result<(), Box<dyn Error>> {
 
     let rows = projects
         .into_iter()
-        .map(|project| (project._id, project.name))
+        .map(|project| (sanitize(&project._id), sanitize(&project.name)))
         .collect::<Vec<_>>();
 
     print_table("ID", "NAME", &rows);
@@ -61,7 +61,7 @@ async fn list_environments(config: &AppConfig) -> Result<(), Box<dyn Error>> {
 
     let rows = environments
         .into_iter()
-        .map(|environment| (environment._id, environment.name))
+        .map(|environment| (sanitize(&environment._id), sanitize(&environment.name)))
         .collect::<Vec<_>>();
 
     print_table("ID", "NAME", &rows);
@@ -77,7 +77,7 @@ fn client(config: &AppConfig) -> Result<ApiClient, Box<dyn Error>> {
         )
     })?;
 
-    Ok(ApiClient::new(&config.api_config).with_token(token))
+    Ok(ApiClient::new(&config.api_config)?.with_token(token))
 }
 
 fn print_table(first_header: &str, second_header: &str, rows: &[(String, String)]) {

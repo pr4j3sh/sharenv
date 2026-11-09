@@ -11,7 +11,7 @@ cargo run -- <command> [flags]
 ```
 
 - Aliases: `register`/`r`, `login`/`l`, `init`/`i`, `add`/`a`, `list`/`ls`, `delete`/`d`, `help`/`h`/`--help`/`-h`.
-- Flags: `init [-p|--project]`, `add [-u|--user | -e|--environment]`, `push|pull [-e|--environment]`, `pull [--pid|--project_id]`, `delete [-p|--project <name> | -e|--environment <env>] [-y|--yes]`. Both `-e dev` and `--environment=dev` work.
+- Flags: `init [-p|--project] [--adopt]`, `add [-u|--user | -e|--environment]`, `push|pull [-e|--environment] [--show-values]`, `pull [--pid|--project_id]`, `delete [-p|--project <name> | -e|--environment <env>] [-y|--yes]`. Both `-e dev` and `--environment=dev` work. `--insecure` is a per-invocation global switch that allows non-loopback plaintext HTTP.
 - Run project commands (`init`, `push`, `pull`, `add`, `delete`, `list environments`) from the target project directory. This checkout may contain gitignored `.sharenv/config.toml` and `.env.*`; running from the repo root targets those.
 
 ## Configuration: two different files
@@ -33,9 +33,9 @@ cargo run -- <command> [flags]
 
 ## Behavior gotchas
 
-- `init` uses the cwd basename unless `-p/--project` is given, validates `[a-z0-9_-]+`, always creates a new remote project, saves its id locally, then creates every `environment_files.environments` entry remotely and as `.env.<env>` locally. If the local project id already matches a remote project, it reports “already initialized” and exits without creating anything.
+- `init` uses the cwd basename unless `-p/--project` is given, validates `[a-z0-9_-]+`, always creates a new remote project, saves its id and identity metadata locally, then creates every `environment_files.environments` entry remotely and as `.env.<env>` locally. If the local project id already matches a remote project, it reports “already initialized” and exits without creating anything; `init --adopt` records identity metadata for that existing project instead.
 - `push -e <env>` creates missing variables and prompts to update existing ones whose remote value differs. It never deletes remote-only variables. Without `-e`, it prompts and pushes every remote environment that has a local `.env.<env>` file. `pull -e <env>` prompts per difference and preserves existing comments/formatting; without `-e`, it prompts and pulls every remote environment.
-- `pull --pid <project_id>` works without a local `.sharenv` config (for shared projects); otherwise it needs the local project id.
+- `pull --pid <project_id>` works without a local `.sharenv` config (for shared projects); otherwise it needs the local project id. `pull` and `push` resolve the project from `GET /project/` first: non-members are refused, the project name/owner are printed, and transfers to projects the user does not own require confirmation.
 - `add -u/--user` shares the current project; `add -e/--environment` creates that environment in the local project and an empty `.env.<env>` if missing. A `409 Conflict` (environment already exists) is reported as a no-op success.
 - `delete` with no target deletes the current project by the id in `.sharenv/config.toml`; `delete -p/--project <name>` deletes by name through the API and removes the local config only when the deleted id matches; `delete -e <env>` resolves the environment within the local project. All prompt unless `--yes`/`-y`; local `.env.*` files are never deleted.
 - `list` requires a subject: `list projects` or `list environments` (short aliases `p`/`e`).

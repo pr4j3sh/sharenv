@@ -7,7 +7,9 @@ use crate::{
         args::{FlagSpec, parse_flags},
         env_file::env_file_path,
         error::is_conflict_error,
-        local_config, token,
+        local_config,
+        output::sanitize,
+        token,
         validation::validate_environment_name,
     },
 };
@@ -47,7 +49,11 @@ async fn share_project(config: &AppConfig, email: String) -> Result<(), Box<dyn 
 
     let project = client.add_user(&local.project.id, email.clone()).await?;
 
-    println!("Shared project '{}' with '{email}'.", project.project_id);
+    println!(
+        "Shared project '{}' with '{}'.",
+        sanitize(&project.project_id),
+        sanitize(&email)
+    );
     println!(
         "They can pull it with: {} pull --pid {} -e <environment>",
         env!("CARGO_PKG_NAME"),
@@ -57,10 +63,7 @@ async fn share_project(config: &AppConfig, email: String) -> Result<(), Box<dyn 
     Ok(())
 }
 
-async fn add_environment(
-    config: &AppConfig,
-    environment_name: &str,
-) -> Result<(), Box<dyn Error>> {
+async fn add_environment(config: &AppConfig, environment_name: &str) -> Result<(), Box<dyn Error>> {
     validate_environment_name(environment_name)?;
 
     let local = load_local(config)?;
@@ -118,5 +121,5 @@ fn client(config: &AppConfig) -> Result<ApiClient, Box<dyn Error>> {
         )
     })?;
 
-    Ok(ApiClient::new(&config.api_config).with_token(token))
+    Ok(ApiClient::new(&config.api_config)?.with_token(token))
 }

@@ -17,6 +17,11 @@ pub struct AppConfig {
 pub struct ApiConfig {
     pub base_url: String,
     pub routes: ApiRoutes,
+    /// Runtime-only escape hatch set by the global `--insecure` switch.
+    /// Deliberately skipped during deserialization so it cannot be persisted
+    /// in config or supplied through an environment override.
+    #[serde(skip)]
+    pub insecure: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]

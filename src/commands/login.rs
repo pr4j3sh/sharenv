@@ -1,7 +1,8 @@
 use std::error::Error;
 
 use crate::{
-    api::client::ApiClient, settings::AppConfig, utils::prompt::prompt_credentials, utils::token,
+    api::client::ApiClient, settings::AppConfig, utils::output::sanitize,
+    utils::prompt::prompt_credentials, utils::token,
 };
 
 pub async fn run(client: &ApiClient, config: &AppConfig) -> Result<(), Box<dyn Error>> {
@@ -13,7 +14,7 @@ pub async fn run(client: &ApiClient, config: &AppConfig) -> Result<(), Box<dyn E
         return Err(format!("login successfully, but failed to save the token: {error}").into());
     }
 
-    println!("logged in and saved token for '{email}'.");
+    println!("logged in and saved token for '{}'.", sanitize(&email));
 
     Ok(())
 }
