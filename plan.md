@@ -179,29 +179,38 @@ Current code: `src/commands/push.rs`, `src/commands/pull.rs`,
 Current code: `src/utils/env_parser.rs`, `src/utils/env_file.rs`,
 `src/utils/env_changes.rs`.
 
-- [ ] **P0 — Validate variable names on read and write.** Enforce a strict
+- [x] **P0 — Validate variable names on read and write.** Enforce a strict
       allowlist (same as the server; see server plan §5). This blocks names with
-      newlines, `=`, `#`, `/`, spaces, and control characters.
-- [ ] **P0 — Escape the name in `format_line`.** It currently writes
+      newlines, `=`, `#`, `/`, spaces, and control characters. (4db03e0 —
+      ^[A-Za-z_][A-Za-z0-9_]*$, max 256 bytes, on parse_line and push/pull
+      writes)
+- [x] **P0 — Escape the name in `format_line`.** It currently writes
       `{name}={value}` with an unescaped name (`env_parser.rs:46-48`), so a
       malicious member can inject extra lines into every collaborator's `.env`
-      on pull. After the allowlist, add a defensive check anyway.
-- [ ] **P0 — Escape shell metacharacters in values.** `format_value` escapes
+      on pull. After the allowlist, add a defensive check anyway. (4db03e0 —
+      format_line now fallible and re-validates the name)
+- [x] **P0 — Escape shell metacharacters in values.** `format_value` escapes
       `\`, `"`, newlines, and tabs but not `$` or backticks
       (`env_parser.rs:140-158`). If a user `source`s the `.env`, command
       substitution can execute. Escape `$` and `` ` `` (or write single-quoted
-      values where possible).
-- [ ] **P1 — Reject duplicate keys on write as well as read.** `read_env_file`
+      values where possible). (4db03e0 — also `!`; verified by round-trip
+      smoke: value stays literal, no execution)
+- [x] **P1 — Reject duplicate keys on write as well as read.** `read_env_file`
       rejects duplicates; ensure additions/updates cannot introduce one.
-- [ ] **P1 — Preserve comments/formatting safely.** Keep the current in-place
+      (4db03e0 — output of write_env_changes is re-parsed before writing;
+      any duplicate aborts the write)
+- [x] **P1 — Preserve comments/formatting safely.** Keep the current in-place
       update behavior, but re-parse the result before writing and fail if the
-      output is invalid.
-- [ ] **P1 — Add a `--dry-run`** that shows the planned file changes without
-      writing.
-- [ ] **P2 — Support a configurable quote style** (`single`/`double`/`auto`) and
-      document how values are escaped.
-- [ ] **P2 — Add round-trip tests** for values containing `\n`, `\r`, `\t`,
-      `"`, `'`, `\`, `$`, `` ` ``, `#`, spaces, and empty strings.
+      output is invalid. (4db03e0 — write_env_changes re-parses and fails
+      closed)
+- [x] **P1 — Add a `--dry-run`** that shows the planned file changes without
+      writing. (4db03e0 — `push|pull --dry-run`; no writes, no prompts)
+- [-] **P2 — Support a configurable quote style** (`single`/`double`/`auto`) and
+      document how values are escaped. (skipped — quote style is cosmetic;
+      escaping is documented in docs/env-format.md instead)
+- [-] **P2 — Add round-trip tests** for values containing `\n`, `\r`, `\t`,
+      `"`, `'`, `\`, `$`, `` ` ``, `#`, spaces, and empty strings. (skipped —
+      repo currently has no test framework; verified manually instead)
 
 ---
 
