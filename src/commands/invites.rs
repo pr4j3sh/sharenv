@@ -3,6 +3,7 @@ use std::error::Error;
 use crate::{
     settings::AppConfig,
     utils::{
+        env_select::environment_names_for,
         local_config,
         output::sanitize,
         session,
@@ -60,7 +61,7 @@ async fn list(config: &AppConfig) -> Result<(), Box<dyn Error>> {
             "pending"
         };
 
-        let granted = environments_names_for(&invitation.environments, &environments);
+        let granted = environment_names_for(&invitation.environments, &environments);
         let id = invitation._id.as_deref().unwrap_or("<unknown>");
 
         println!("{id}");
@@ -114,7 +115,7 @@ async fn accept(config: &AppConfig, token_value: &str) -> Result<(), Box<dyn Err
         accepted.environments.len()
     );
     println!(
-        "Pull it with: {} pull --pid {} -e <environment>",
+        "Pull it with: {} pull --project-id {} <environment>",
         env!("CARGO_PKG_NAME"),
         accepted.project_id
     );
@@ -122,21 +123,4 @@ async fn accept(config: &AppConfig, token_value: &str) -> Result<(), Box<dyn Err
     Ok(())
 }
 
-fn environments_names_for(
-    ids: &[String],
-    environments: &[crate::models::EnvironmentModel],
-) -> Vec<String> {
-    if ids.is_empty() {
-        return vec!["none".to_string()];
-    }
 
-    ids.iter()
-        .map(|id| {
-            environments
-                .iter()
-                .find(|environment| &environment._id == id)
-                .map(|environment| environment.name.clone())
-                .unwrap_or_else(|| id.clone())
-        })
-        .collect()
-}

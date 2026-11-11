@@ -5,7 +5,7 @@ use crate::{
     models::EnvironmentModel,
     settings::AppConfig,
     utils::{
-        args::{FlagSpec, parse_flags, parse_switch},
+        args::parse_switch,
         env_changes::{ChangePlan, filter_decryptable, plan_changes},
         env_file::{env_file_path, write_env_changes},
         env_parser::read_env_file,
@@ -19,29 +19,48 @@ use crate::{
 
 pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>> {
     let (args, show_values) = parse_switch(args, &["--show-values"]);
+    let mut env_name: Option<String> = None;
+    let mut project_id: Option<String> = None;
+    let mut iter = args.iter();
 
-    let specs = [
-        FlagSpec {
-            key: "environment",
-            names: &["--environment", "-e"],
-            label: "environment name",
-        },
-        FlagSpec {
-            key: "project_id",
-            names: &["--pid", "--project_id", "-pid"],
-            label: "project id",
-        },
-    ];
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--project-id" => {
+                let value = iter.next().ok_or("missing value for --project-id")?;
 
-    let mut flags = parse_flags(&args, &specs)?;
+                if value.starts_with('-') {
+                    return Err("missing value for --project-id".into());
+                }
 
-    let env_name = flags.remove("environment");
+                project_id = Some(value.clone());
+            }
+            value if value.starts_with("--project-id=") => {
+                let value = &value["--project-id=".len()..];
+
+                if value.is_empty() {
+                    return Err("missing value for --project-id".into());
+                }
+
+                project_id = Some(value.to_string());
+            }
+            value if value.starts_with('-') => {
+                return Err(format!("unexpected argument '{value}'").into());
+            }
+            value => {
+                if env_name.is_some() {
+                    return Err(format!("unexpected argument '{value}'").into());
+                }
+
+                env_name = Some(value.to_string());
+            }
+        }
+    }
 
     if let Some(env_name) = &env_name {
         validate_environment_name(env_name)?;
     }
 
-    let project_id = match flags.remove("project_id") {
+    let project_id = match project_id {
         Some(project_id) => project_id,
         None => {
             let local = local_config::load(config)
@@ -49,7 +68,7 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
 
             if local.project.id.is_empty() {
                 return Err(format!(
-                    "project id is missing from {}; pass --pid <project_id>",
+                    "project id is missing from {}; pass --project-id <project_id>",
                     config.config_file_path
                 )
                 .into());

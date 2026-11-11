@@ -2,6 +2,7 @@ pub mod args;
 pub mod env_changes;
 pub mod env_file;
 pub mod env_parser;
+pub mod env_select;
 pub mod error;
 pub mod jwt;
 pub mod local_config;

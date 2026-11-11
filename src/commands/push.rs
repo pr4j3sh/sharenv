@@ -5,7 +5,7 @@ use crate::{
     models::EnvironmentModel,
     settings::AppConfig,
     utils::{
-        args::{parse_switch, parse_value_arg},
+        args::{parse_switch, take_positional},
         env_changes::filter_decryptable,
         env_file::env_file_path,
         env_parser::read_env_file,
@@ -20,7 +20,7 @@ use crate::{
 
 pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>> {
     let (args, show_values) = parse_switch(args, &["--show-values"]);
-    let env_name = parse_value_arg(&args, "--environment", "-e", "environment name")?;
+    let env_name = take_positional(&args)?;
 
     if let Some(env_name) = &env_name {
         validate_environment_name(env_name)?;

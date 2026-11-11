@@ -5,7 +5,7 @@ pub fn run(config: &AppConfig) {
 
     println!("{name} - Manage your project environments\n");
     println!("USAGE:");
-    println!("    {name} <COMMAND> [OPTIONS]\n");
+    println!("    {name} <COMMAND> [ARGS] [OPTIONS]\n");
     println!("    using config v{} \n", &config.config_version);
     println!("COMMANDS:");
     println!("    register, r   Register a new account");
@@ -13,24 +13,23 @@ pub fn run(config: &AppConfig) {
     println!("    logout        Revoke your server-side session and remove local tokens");
     println!("    verify        Verify your account with the emailed code [email]");
     println!("    resend        Resend the verification code [email]");
-    println!("    init, i       Initialize a project [-p|--project <project_name>] [--adopt]");
+    println!("    init, i       Initialize a project [name] [--adopt]");
+    println!("                  Bare name initializes with the current directory's name");
+    println!("    add, a        Create an environment <environment>");
+    println!("    push          Push variables [environment] [--show-values]");
+    println!("                  Omit [environment] to push all environments with local .env files");
+    println!("    pull          Pull variables [environment] [--show-values] [--project-id <project_id>]");
+    println!("                  Omit [environment] to pull all environments");
+    println!("                  Use --project-id to pull a shared project without a local .sharenv config");
     println!("    invite        Invite a user to the current project <email> [--role <writer|reader>]");
     println!("    invites       Manage invitations: invites list | invites cancel <id> | invites accept <token>");
-    println!("    add, a        Create an environment [-e|--environment <env_name>]");
-    println!("    push          Push variables [-e|--environment <env_name>] [--show-values]");
-    println!("                  Omit -e to push all environments with local .env files");
-    println!("    pull          Pull variables [-e|--environment <env_name>] [--show-values]");
-    println!("                  Omit -e to pull all environments");
-    println!("                  Use [-pid|--project_id <project_id>] to pull a shared project");
-    println!("    list, ls      List your projects or the current project's environments");
-    println!("                  Usage: list projects | list environments");
-    println!(
-        "    delete, d     Delete the current project, a project by name, or an environment [-y|--yes]"
-    );
-    println!(
-        "                  Usage: delete | delete -p|--project <project_name> | delete -e|--environment <env_name>"
-    );
-    println!("                  Project deletion requires your password (server re-authentication)");
+    println!("    list, ls      List your projects, the current project's environments, or its members");
+    println!("                  Usage: list projects | list environments | list members");
+    println!("    members       Update member access (owner only)");
+    println!("                  Usage: members role <email> <writer|reader> | members environment <email>");
+    println!("    delete, d     Delete a project or environment");
+    println!("                  Usage: delete project [name] | delete environment <name> [-y|--yes]");
+    println!("                  Bare 'delete project' deletes the current project; project deletion requires your password");
     println!("    help, h       Display this help message");
     println!();
     println!("GLOBAL OPTIONS:");

@@ -11,16 +11,21 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
     match subject {
         "projects" | "project" | "p" => list_projects(config).await,
         "environments" | "environment" | "env" | "e" => list_environments(config).await,
+        "members" | "member" | "m" => list_members(config).await,
         "" => Err(format!(
-            "missing list subject; usage: {} list <projects|environments>",
+            "missing list subject; usage: {} list <projects|environments|members>",
             env!("CARGO_PKG_NAME")
         )
         .into()),
         other => Err(format!(
-            "'{other}' is not a valid list subject; use 'projects' or 'environments'"
+            "'{other}' is not a valid list subject; use 'projects', 'environments' or 'members'"
         )
         .into()),
     }
+}
+
+async fn list_members(config: &AppConfig) -> Result<(), Box<dyn Error>> {
+    crate::commands::members::list_impl(config).await
 }
 
 async fn list_projects(config: &AppConfig) -> Result<(), Box<dyn Error>> {

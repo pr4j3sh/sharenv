@@ -7,6 +7,7 @@ pub mod invites;
 pub mod list;
 pub mod login;
 pub mod logout;
+pub mod members;
 pub mod pull;
 pub mod push;
 pub mod register;

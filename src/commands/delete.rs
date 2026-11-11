@@ -3,7 +3,7 @@ use std::error::Error;
 use crate::{
     settings::AppConfig,
     utils::{
-        args::{FlagSpec, parse_flags, parse_switch},
+        args::parse_switch,
         local_config,
         output::sanitize,
         prompt, session,
@@ -12,32 +12,20 @@ use crate::{
 };
 
 pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>> {
-    let specs = [
-        FlagSpec {
-            key: "project",
-            names: &["--project", "-p"],
-            label: "project name",
-        },
-        FlagSpec {
-            key: "environment",
-            names: &["--environment", "-e"],
-            label: "environment name",
-        },
-    ];
-
     let (args, yes) = parse_switch(args, &["--yes", "-y"]);
-    let mut flags = parse_flags(&args, &specs)?;
 
-    let project_name = flags.remove("project");
-    let environment_name = flags.remove("environment");
+    let mut iter = args.iter();
+    let subject = iter.next().map(String::as_str);
+    let rest: Vec<String> = iter.cloned().collect();
 
-    match (project_name, environment_name) {
-        (Some(_), Some(_)) => {
-            Err("specify either -p/--project or -e/--environment, not both".into())
-        }
-        (None, None) => delete_current_project(config, yes).await,
-        (Some(name), None) => delete_project_by_name(config, &name, yes).await,
-        (None, Some(name)) => delete_environment(config, &name, yes).await,
+    match subject {
+        Some("project") => delete_project_cmd(config, &rest, yes).await,
+        Some("environment") => delete_environment_cmd(config, &rest, yes).await,
+        Some(other) => Err(format!(
+            "'{other}' is not a valid delete subject; use 'project [name]' or 'environment <name>'"
+        )
+        .into()),
+        None => Err("missing delete subject; usage: delete <project [name] | environment <name>> [-y|--yes]".into()),
     }
 }
 
@@ -49,6 +37,49 @@ fn prompt_password() -> Result<String, Box<dyn Error>> {
     }
 
     Ok(password)
+}
+
+async fn delete_project_cmd(
+    config: &AppConfig,
+    rest: &[String],
+    yes: bool,
+) -> Result<(), Box<dyn Error>> {
+    if rest.len() > 1 {
+        return Err("usage: delete project [name] (omit the name to delete the current project)".into());
+    }
+
+    let name = rest.first().map(String::as_str);
+
+    for arg in rest {
+        if arg.starts_with('-') {
+            return Err(format!("unexpected argument '{arg}'").into());
+        }
+    }
+
+    match name {
+        Some(name) => delete_project_by_name(config, name, yes).await,
+        None => delete_current_project(config, yes).await,
+    }
+}
+
+async fn delete_environment_cmd(
+    config: &AppConfig,
+    rest: &[String],
+    yes: bool,
+) -> Result<(), Box<dyn Error>> {
+    let name = match rest {
+        [name] => name,
+        [] => return Err("usage: delete environment <name>".into()),
+        _ => return Err("usage: delete environment <name>".into()),
+    };
+
+    if name.starts_with('-') {
+        return Err(format!("unexpected argument '{name}'").into());
+    }
+
+    validate_environment_name(name)?;
+
+    delete_environment(config, name, yes).await
 }
 
 async fn delete_current_project(config: &AppConfig, yes: bool) -> Result<(), Box<dyn Error>> {
@@ -132,8 +163,6 @@ async fn delete_environment(
     environment_name: &str,
     yes: bool,
 ) -> Result<(), Box<dyn Error>> {
-    validate_environment_name(environment_name)?;
-
     let project_id = load_project_id(config)?;
     let client = session::authenticated_client(config).await?;
     let environments = client

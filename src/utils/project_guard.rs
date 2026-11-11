@@ -124,7 +124,7 @@ fn check_local_identity(config: &AppConfig, project: &ProjectModel) -> IdentityC
         return check;
     };
 
-    // A `pull --pid` may target a project other than the one recorded locally.
+    // A `pull --project-id` may target a project other than the one recorded locally.
     if local.project.id.is_empty() || local.project.id != project._id {
         return check;
     }

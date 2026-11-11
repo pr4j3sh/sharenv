@@ -3,6 +3,7 @@ use std::env;
 use crate::{
     settings::AppConfig,
     utils::{
+        args::take_positional,
         env_file::{create_env_file, env_file_path},
         local_config,
         output::sanitize,
@@ -13,9 +14,10 @@ use crate::{
 
 pub async fn run(
     config: &AppConfig,
-    name: Option<String>,
+    args: Vec<String>,
     adopt: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let name = take_positional(&args)?;
     let path = env::current_dir()?;
     let cwd_name = path
         .file_name()

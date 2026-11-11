@@ -52,13 +52,13 @@ async fn refresh_session(config: &AppConfig) -> Result<String, Box<dyn std::erro
     let client = ApiClient::new(&config.api_config)?;
     let tokens = match client.refresh(refresh_token).await {
         Ok(tokens) => tokens,
-        Err(error) => {
+        Err(_) => {
             // The refresh token is dead too; drop whatever remains locally so
-            // the user starts from a clean slate.
+            // the user starts from a clean slate. The server does not need to
+            // be told: an invalid refresh token cannot be revoked anyway.
             let _ = token::delete_session_tokens(&config.auth);
             return Err(format!(
-                "{}: your session expired; run '{} login' again",
-                error,
+                "your saved session expired or was revoked; run '{} login' again",
                 env!("CARGO_PKG_NAME")
             )
             .into());

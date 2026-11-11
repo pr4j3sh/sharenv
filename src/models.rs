@@ -90,6 +90,33 @@ pub struct CreateInvitationRequest {
 }
 
 #[derive(Serialize, Debug)]
+pub struct UpdateMemberAccessRequest {
+    pub environments: Vec<String>,
+    pub role: String,
+    pub password: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct MemberModel {
+    pub user_id: String,
+    pub email: String,
+    pub role: String,
+    #[serde(default)]
+    pub environments: Vec<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct UpdateMemberAccessModel {
+    #[allow(dead_code)]
+    pub project_id: String,
+    #[allow(dead_code)]
+    pub user_id: String,
+    pub role: String,
+    #[serde(default)]
+    pub environments: Vec<String>,
+}
+
+#[derive(Serialize, Debug)]
 pub struct CancelInvitationRequest {
     pub password: String,
 }

@@ -80,7 +80,7 @@ Run this from inside the project you want to track:
 
 ```bash
 sharenv init                 # project name = current directory name
-sharenv init -p my-project   # or choose one explicitly
+sharenv init my-project       # or choose one explicitly
 ```
 
 ### 3. Push variables
@@ -88,7 +88,7 @@ sharenv init -p my-project   # or choose one explicitly
 Push one environment:
 
 ```bash
-sharenv push -e dev
+sharenv push dev
 ```
 
 Or push every remote environment that has a matching `.env.<env>` file:
@@ -132,10 +132,20 @@ sharenv invites list
 sharenv invites cancel <invitation_id>
 ```
 
-Use `-e` to create another environment for the current project:
+Once they've accepted, you can list members, update roles, re-pick grants, or
+change roles again (owner-only; the API re-authenticates you with your
+password):
 
 ```bash
-sharenv add -e staging
+sharenv list members                             # owner + members, roles, grants
+sharenv members role teammate@example.com writer
+sharenv members environment teammate@example.com  # re-pick environment grants
+```
+
+Create another environment for the current project:
+
+```bash
+sharenv add staging
 ```
 
 This creates the environment remotely and adds an empty `.env.staging` file if
@@ -145,7 +155,7 @@ it does not exist yet.
 variables without a local `.sharenv` config:
 
 ```bash
-sharenv pull --pid <project_id> -e dev
+sharenv pull --project-id <project_id> dev
 ```
 
 ### 5. Pull variables
@@ -153,13 +163,13 @@ sharenv pull --pid <project_id> -e dev
 Pull one environment:
 
 ```bash
-sharenv pull -e dev
+sharenv pull dev
 ```
 
-Run `sharenv pull` without `-e` to pull all remote environments. By default
-`pull` reads the project id from `.sharenv/config.toml`. Pass
-`--pid <project_id>` to pull a shared project from any directory; without `-e`
-that pulls all of its environments too.
+Run `sharenv pull` with no environment to pull all remote environments. By
+default `pull` reads the project id from `.sharenv/config.toml`. Pass
+`--project-id <project_id>` to pull a shared project from any directory; with
+no environment that pulls all of its environments too.
 
 You must be a member of the project to pull it. The CLI resolves the project
 from the server first and refuses non-members before fetching any variables.
@@ -170,9 +180,11 @@ Values are hidden by default; pass `--show-values` to print them.
 ```bash
 sharenv list projects       # ls p
 sharenv list environments   # ls e
+sharenv list members        # owner-only; members with roles and grants
 ```
 
-`list environments` uses the project id from `.sharenv/config.toml`.
+`list environments` and `list members` use the project id from
+`.sharenv/config.toml`; `list members` is owner-only.
 
 ### 7. Delete a project or environment
 
@@ -180,14 +192,15 @@ Run this from the initialized project directory. All commands ask for
 confirmation; add `--yes` (or `-y`) to skip the prompt.
 
 ```bash
-sharenv delete                   # current project (id from .sharenv/config.toml)
-sharenv delete -p my-project     # project by name
-sharenv delete -e dev            # one environment
+sharenv delete project                   # current project (id from .sharenv/config.toml)
+sharenv delete project my-project        # project by name
+sharenv delete environment dev           # one environment
 ```
 
-Deleting the current project uses the id from `.sharenv/config.toml` and removes
-that local config on success. `-p/--project` deletes by name through the API; the
-local config is removed only if the deleted project id matches. Local
+`delete project` with no name deletes the current project (id from
+`.sharenv/config.toml`) and removes that local config on success. A name deletes
+by name through the API; the local config is removed only if the deleted project
+id matches. Deleting a project requires your password, even with `--yes`; local
 `.env.<env>` files are left untouched.
 
 ### 8. Help
@@ -226,19 +239,19 @@ Key behaviors:
 | `logout`   | —                   | —                                                        | Revoke the server-side session and remove local tokens.                                      |
 | `verify`   | —                   | `[email]`                                                | Verify an account with the emailed code (defaults to the email saved at registration). Saves the session on success. |
 | `resend`   | —                   | `[email]`                                                | Resend the verification code.                                                               |
-| `init`     | `i`                 | `-p`, `--project <project>`, `--adopt`                   | Create the remote project and local `.env` files. Defaults to the current directory's name. `--adopt` records identity for an existing project. |
+| `init`     | `i`                 | `[name]`, `--adopt`                                      | Create the remote project and local `.env` files. Defaults to the current directory's name; pass a name to override. `--adopt` records identity for an existing project. |
 | `invite`   | —                   | `<email>`, `--role <writer\|reader>`                     | Invite a user to the current project (owner only; re-authenticates with your password). |
+| `members`  | —                   | `role <email> <writer\|reader>`, `environment <email>`      | Change a member's role or re-pick their environment grants (owner-only; re-authenticates with your password). Listing members uses `list members`. |
 | `invites`  | —                   | `list`, `cancel <id>`, `accept <token>`                   | List, cancel (owner, re-authenticates) or accept invitations. Accepting requires the invited account. |
-| `add`      | `a`                 | `-e`, `--environment <env>`                              | Create an environment for the current project.                                               |
-| `push`     | —                   | `-e`, `--environment <env>`, `--show-values`             | Push one environment, or all environments with local `.env.<env>` files when `-e` is omitted. Values are hidden unless `--show-values`. |
-| `pull`     | —                   | `-e`, `--environment <env>`, `-pid`, `--project_id <id>`, `--show-values` | Pull one environment, or all environments when `-e` is omitted. Requires project membership. |
-| `list`     | `ls`                | `projects`, `environments`                               | List your projects or the current project's environments.                                   |
-| `delete`   | `d`                 | `-p`, `--project <project>`, `-e`, `--environment <env>`, `-y`, `--yes` | Delete the current project, a project by name, or an environment.                    |
+| `add`      | `a`                 | `<environment>`                                          | Create an environment for the current project.                                               |
+| `push`     | —                   | `[environment]`, `--show-values`                         | Push one environment, or all environments with local `.env.<env>` files when omitted. Values are hidden unless `--show-values`. |
+| `pull`     | —                   | `[environment]`, `--show-values`, `--project-id <id>`     | Pull one environment, or all environments when omitted. Requires project membership. |
+| `list`     | `ls`                | `projects`, `environments`, `members`                    | List your projects, the current project's environments, or its members (owner-only).        |
+| `delete`   | `d`                 | `project [name]`, `environment <name>`, `-y`, `--yes`     | Delete a project (bare: current project; name deletes by name; password required) or an environment. |
 | `help`     | `h`, `--help`, `-h` | —                                                        | Show help.                                                                                  |
 
-Flags accept both space-separated and `=` forms: `-e dev`, `--environment dev`,
-`--environment=dev`, `-e=dev`, `-p my-project`, `--project=my-project`,
-`--pid=<project_id>`.
+Flags accept both space-separated and `=` forms: `--project-id <id>`,
+`--project-id=<id>`, `--role <role>`, `--role=<role>`.
 
 ### Configuration (`config.toml`)
 

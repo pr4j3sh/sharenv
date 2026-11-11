@@ -2,7 +2,7 @@ use crate::api::client::ApiClient;
 use crate::{
     commands,
     settings::AppConfig,
-    utils::args::{parse_project_arg, parse_switch},
+    utils::args::parse_switch,
 };
 
 pub async fn run_cli(config: &mut AppConfig) -> Result<(), Box<dyn std::error::Error>> {
@@ -31,12 +31,12 @@ pub async fn run_cli(config: &mut AppConfig) -> Result<(), Box<dyn std::error::E
         "resend" => commands::resend::run(config, args.get(2..).unwrap_or(&[])).await?,
         "init" | "i" => {
             let (init_args, adopt) = parse_switch(args.get(2..).unwrap_or(&[]), &["--adopt"]);
-            let name = parse_project_arg(&init_args)?;
-            commands::init::run(config, name, adopt).await?
+            commands::init::run(config, init_args, adopt).await?
         }
         "add" | "a" => commands::add::run(config, args.get(2..).unwrap_or(&[])).await?,
         "invite" => commands::invite::run(config, args.get(2..).unwrap_or(&[])).await?,
         "invites" => commands::invites::run(config, args.get(2..).unwrap_or(&[])).await?,
+        "members" => commands::members::run(config, args.get(2..).unwrap_or(&[])).await?,
         "push" => commands::push::run(config, args.get(2..).unwrap_or(&[])).await?,
         "pull" => commands::pull::run(config, args.get(2..).unwrap_or(&[])).await?,
         "list" | "ls" => commands::list::run(config, args.get(2..).unwrap_or(&[])).await?,
