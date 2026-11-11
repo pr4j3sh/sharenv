@@ -45,25 +45,34 @@ Settled decisions:
 Current code: `src/utils/token.rs`, `src/commands/login.rs`,
 `src/commands/register.rs`, `src/utils/prompt.rs`, `src/settings/models.rs`.
 
-- [ ] **P0 — Add a `logout` command.** Call the new server logout/revocation
+- [x] **P0 — Add a `logout` command.** Call the new server logout/revocation
       endpoint (see server plan §3) and delete the keyring entry. Wire it into
       `src/cli.rs`, `src/commands/mod.rs`, and `src/commands/help.rs`.
-- [ ] **P0 — Stop leaving tokens valid after logout.** Ensure `logout` clears
+      (2be57d8)
+- [x] **P0 — Stop leaving tokens valid after logout.** Ensure `logout` clears
       the local token even if the server call fails, and warns the user that the
-      token may still be valid until expiry.
-- [ ] **P1 — Zeroize token/password buffers.** Use `zeroize`/`secrecy` for the
+      token may still be valid until expiry. (2be57d8)
+- [x] **P1 — Zeroize token/password buffers.** Use `zeroize`/`secrecy` for the
       token, password, and decrypted values held in memory.
-- [ ] **P1 — Support named profiles/accounts.** The fixed
+      (f7271bd — passwords and token/refresh-token strings zeroized after use;
+      decrypted .env values NOT zeroized, they are plaintext on disk anyway)
+- [x] **P1 — Support named profiles/accounts.** The fixed
       `token_service`/`token_account` means one token per OS user
       (`config.toml:16-18`). Add `--profile` or per-base-URL keyring accounts so
       dev/prod tokens do not overwrite each other.
-- [ ] **P1 — Reject insecure keyring fallbacks.** Confirm the keyring backend
+      (f7271bd — `<token_account>-<fnv1a64(base_url) hex>` slots + optional
+      per-invocation `--profile <name>`)
+- [x] **P1 — Reject insecure keyring fallbacks.** Confirm the keyring backend
       never falls back to a plaintext file; fail closed with a clear error in
-      headless environments.
-- [ ] **P1 — Add a token-expiry check.** Decode the JWT `exp` locally and prompt
+      headless environments. (f7271bd — zbus/Secret Service/native backends
+      only; headless hosts get a clear error, no file fallback ever added)
+- [x] **P1 — Add a token-expiry check.** Decode the JWT `exp` locally and prompt
       for re-login before a request that will fail with `401`.
-- [ ] **P2 — Add a `whoami` command** that shows the logged-in user (from the
-      JWT `sub`/server endpoint) without printing the token.
+      (2be57d8 — implemented as transparent refresh 60s before expiry; on
+      refresh failure the local session is wiped and a single clear line is
+      printed; stronger than prompting)
+- [x] **P2 — Add a `whoami` command** that shows the logged-in user (from the
+      JWT `sub`/server endpoint) without printing the token. (f7271bd)
 
 ---
 
