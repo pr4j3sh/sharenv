@@ -118,29 +118,32 @@ Current code: `src/api/client.rs`, `src/api/*.rs`, `config.toml`,
 Current code: `src/utils/env_file.rs`, `src/utils/local_config.rs`,
 `src/utils/env_parser.rs`.
 
-- [ ] **P0 — Create `.env.*` files with `0600`.** `File::create`/`fs::write` use
+- [x] **P0 — Create `.env.*` files with `0600`.** `File::create`/`fs::write` use
       the umask; on this machine `.env.dev` is `-rw-r--r--`. Use
       `OpenOptions::new().mode(0o600)` (Unix) and set `0600` on existing files
-      after write. Acceptance: `ls -l .env.dev` shows `-rw-------`.
-- [ ] **P0 — Create `.sharenv/` with `0700` and `config.toml` with `0600`.**
+      after write. Acceptance: `ls -l .env.dev` shows `-rw-------`. (ed251b6)
+- [x] **P0 — Create `.sharenv/` with `0700` and `config.toml` with `0600`.**
       `local_config::save` currently uses `fs::create_dir_all` + `fs::write`
-      (`src/utils/local_config.rs:19-30`).
-- [ ] **P0 — Refuse to read/write unsafe files.** Before reading or writing a
+      (`src/utils/local_config.rs:19-30`). (ed251b6)
+- [x] **P0 — Refuse to read/write unsafe files.** Before reading or writing a
       secret file, check: it is a regular file, not a symlink, owned by the
       current user, and has no group/other permissions. Offer a `--fix-perms`
-      or clear error.
-- [ ] **P0 — Make writes symlink-safe.** Use `O_NOFOLLOW`/`create_new` or
+      or clear error. (ed251b6 — clear error + chmod hint; no flag, smaller
+      attack surface)
+- [x] **P0 — Make writes symlink-safe.** Use `O_NOFOLLOW`/`create_new` or
       `lstat` checks. A malicious repo with `.env.dev -> ~/.bashrc` or
       `.sharenv/config.toml -> ~/.ssh/authorized_keys` can currently cause
       arbitrary overwrites (`env_file.rs:20-34,38-76`,
-      `local_config.rs:19-30`).
-- [ ] **P1 — Make writes atomic.** Write to a temp file in the same directory,
+      `local_config.rs:19-30`). (ed251b6 — lstat refusal + temp-file atomic
+      rename replaces, never follows)
+- [x] **P1 — Make writes atomic.** Write to a temp file in the same directory,
       `fsync`, then `rename`. Prevents truncation/corruption on crash and
-      reduces TOCTOU windows.
-- [ ] **P1 — Validate the target path stays inside the project root.**
+      reduces TOCTOU windows. (ed251b6)
+- [x] **P1 — Validate the target path stays inside the project root.**
       Canonicalize the parent and reject paths that escape the cwd.
-- [ ] **P1 — Respect a safe umask** and do not silently widen permissions on
-      existing files.
+      (ed251b6 — nearest existing ancestor walked)
+- [x] **P1 — Respect a safe umask** and do not silently widen permissions on
+      existing files. (ed251b6 — explicit 0600/0700 regardless of umask)
 
 ---
 
