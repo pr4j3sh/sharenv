@@ -162,12 +162,15 @@ Current code: `src/commands/push.rs`, `src/commands/pull.rs`,
 - [x] ~~**P1 — Mask values in `--show-values` mode** by default (e.g. first/last
       two characters) unless `--reveal` is also passed.~~ Superseded by the
       section 1 decision: `--show-values` prints full sanitized values.
-- [ ] **P1 — Avoid writing secrets to shell history.** Do not accept secret
+- [x] **P1 — Avoid writing secrets to shell history.** Do not accept secret
       values as command-line arguments; keep reading them from files/prompts.
-- [ ] **P1 — Add a `--quiet`/`--json` mode** so CI can avoid values in logs and
-      get machine-readable output.
-- [ ] **P2 — Warn when stdout is not a TTY** that output may be captured in
-      logs.
+      (verified — no command accepts secret values via argv; documented)
+- [x] **P1 — Add a `--quiet`/`--json` mode** so CI can avoid values in logs and
+      get machine-readable output. (6648b0e — global `--json`; JSON document
+      on stdout (list, whoami, push, pull); prompts/progress on stderr;
+      values only with --show-values)
+- [x] **P2 — Warn when stdout is not a TTY** that output may be captured in
+      logs. (6648b0e — only for push/pull in human mode; muted with --json)
 
 ---
 
