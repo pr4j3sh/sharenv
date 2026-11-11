@@ -2125,6 +2125,7 @@ dependencies = [
  "directories",
  "futures",
  "keyring",
+ "libc",
  "reqwest",
  "rpassword",
  "serde",

@@ -4,6 +4,7 @@ pub mod env_file;
 pub mod env_parser;
 pub mod env_select;
 pub mod error;
+pub mod fs_secure;
 pub mod jwt;
 pub mod local_config;
 pub mod output;

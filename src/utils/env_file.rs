@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    fs::{self, File},
     io,
     path::Path,
 };
@@ -9,6 +8,7 @@ use crate::{
     settings::AppConfig,
     utils::{
         env_parser::{EnvVariable, format_line, parse_line},
+        fs_secure,
         prompt,
     },
 };
@@ -18,15 +18,20 @@ pub fn env_file_path(config: &AppConfig, env_name: &str) -> String {
 }
 
 pub fn create_env_file(path: &str) -> io::Result<()> {
-    if Path::new(path).exists() {
+    let path_ref = Path::new(path);
+
+    if path_ref.exists() {
+        fs_secure::check_secret_file(path_ref)?;
+
         if prompt::confirm(&format!("{path} file already exists. Replace it? [y/N]: "))? {
-            File::create(path)?;
+            fs_secure::path_inside_cwd(path_ref)?;
+            fs_secure::atomic_write_secure(path_ref, "")?;
             println!("Replaced {path} file");
         } else {
             println!("Keeping existing {path} file");
         }
     } else {
-        File::create(path)?;
+        fs_secure::atomic_write_secure(path_ref, "")?;
         println!("Created {path} file");
     }
 
@@ -35,15 +40,19 @@ pub fn create_env_file(path: &str) -> io::Result<()> {
 
 /// Apply accepted updates in place and append new variables, keeping comments
 /// and existing formatting intact. Creates the file when it does not exist.
+///
+/// The result is a `0600` regular file; a symlink at `path` is refused.
 pub fn write_env_changes(
     path: &str,
     updates: &HashMap<String, String>,
     additions: &[EnvVariable],
 ) -> io::Result<()> {
-    let content = match fs::read_to_string(path) {
-        Ok(content) => content,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => String::new(),
-        Err(error) => return Err(error),
+    let path_ref = Path::new(path);
+    fs_secure::path_inside_cwd(path_ref)?;
+
+    let content = match fs_secure::safe_read_opt(path_ref, true)? {
+        Some(content) => content,
+        None => String::new(),
     };
 
     let mut lines: Vec<String> = content.lines().map(str::to_string).collect();
@@ -72,5 +81,5 @@ pub fn write_env_changes(
         output.push('\n');
     }
 
-    fs::write(path, output)
+    fs_secure::atomic_write_secure(path_ref, &output)
 }

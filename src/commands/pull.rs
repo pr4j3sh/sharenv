@@ -156,7 +156,7 @@ async fn pull_environment(
 
     let path = env_file_path(config, &environment.name);
     let existing = if Path::new(&path).exists() {
-        read_env_file(&path).map_err(|error| format!("failed to read {path}: {error}"))?
+        read_env_file(&path)?
     } else {
         Vec::new()
     };

@@ -55,6 +55,9 @@ variable values.
 
 ## What `sharenv` protects against
 
+- **Loose permissions on local secret files**: newly created files are
+  `0600`, `.sharenv/` is `0700`, and the CLI refuses to read or write files
+  that are symlinks, not owned by you, or have group/other bits set.
 - **Accidental commits of `.env*`** when the repository's `.gitignore` covers
   them. `init` does not yet modify `.gitignore`, so add `.env*` yourself until
   that hardening lands (see the project plan).
@@ -75,14 +78,19 @@ variable values.
   the server's project list first. Non-members are refused before any variable
   is fetched.
 - **Plaintext token storage on disk**: tokens live in the OS keyring rather
-  than in a config file.
+  than in a config file. Slots are derived per server, so dev and production
+  sessions never overwrite each other.
+- **Loose local file permissions**: `.env.*` and `.sharenv/` are created and
+  enforced `0600`/`0700`; all writes go through a temp file + atomic rename.
+  Symlinks and group/other-permission files are refused outright.
 
 ## What `sharenv` does not protect against
 
 - **A compromised or malicious server operator.** Server-side encryption is not
   end-to-end encryption. The API can decrypt every value.
 - **A stolen bearer token.** A token grants the same access as the user until
-  it expires. Logout/revocation is not implemented yet.
+  it expires (~15 minutes). `logout` revokes the token server-side and wipes
+  the local keyring entries.
 - **A compromised local account.** Any process running as your user (or root)
   can read `.env.*`, the keyring, and memory while the CLI is running.
 - **Local copies outside the CLI's control.** Editors, shell history, swap
@@ -92,9 +100,10 @@ variable values.
   `.sharenv/config.toml`. The CLI treats that file as advisory and shows the
   project identity from the server, but it cannot make a hostile repository
   safe. Review `.sharenv/config.toml` before pushing.
-- **Immediate sharing.** `add --user <email>` currently grants membership
-  immediately with no invitation/consent step. The recipient can pull the
-  project's environments.
+- **An unwanted share, once accepted.** Sharing uses invitations and the
+  invited account must accept them. An owner who invites you can grant access
+  to selected environments; re-check your memberships with `list members` and
+  revoke access there (or ask the project owner).
 - **Server logs and backups.** The server may retain request metadata, and
   database backups may contain encrypted values. Refer to the API's security
   plan.
@@ -119,14 +128,16 @@ deployments should use a certificate trusted by the operating system.
 ## Authentication and tokens
 
 - `login`/`register` obtain a bearer JWT and store it in the OS keyring using
-  the `[auth]` service and account in `config.toml`.
+  the `[auth]` service name in `config.toml`. The account is
+  `<token_account>-<fnv1a64(base_url) hex>` per server, or
+  `<token_account>-<profile>` with `--profile <name>`.
 - All project, environment, and variable requests attach the token.
-- The fixed keyring account means one token per OS user per configuration.
-  Named profiles are not implemented yet, so dev and production tokens can
-  overwrite each other.
+- `--profile <name>` (per invocation, never persisted) namespaces the slot
+  for that run; dev and production servers never overwrite each other.
 - If the keyring backend is unavailable (for example, a headless environment
   without a secret service), token storage fails. The CLI does not fall back to
   a plaintext token file.
+
 
 ## Secret display
 
@@ -167,7 +178,7 @@ Pushes to a project you do not own always show the owner and ask for
 confirmation, even when the local config looks valid. There is no `--yes`
 bypass for that prompt.
 
-`pull --pid <project_id>` resolves the project name and owner before fetching
+`pull --project-id <project_id>` resolves the project name and owner before fetching
 variables, refuses projects you are not a member of, and asks for confirmation
 when you are a member but not the owner.
 
@@ -191,3 +202,14 @@ initialized project without creating a new one.
 
 See `SECURITY.md` in the repository for the disclosure contact and supported
 versions. Do not include real secrets in a report.
+
+## Local file permissions
+
+- `.env.<env>` files and `.sharenv/config.toml` are created with mode `0600`
+  (owner read/write only). `.sharenv/` itself is `0700`.
+- Writes replace the target atomically (temp file + `fsync` + `rename`), never
+  writing through a symlink; a symlink at the target path is refused outright.
+- Before any read or write of a secret file, the CLI checks: regular file, not
+  a symlink, owned by you, no group/other permission bits. Anything else is
+  refused with an error naming the cause and the exact `chmod 600` fix.
+- New files and any file the CLI rewrites are forced back to `0600`.

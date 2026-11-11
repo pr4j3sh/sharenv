@@ -27,7 +27,7 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
     }
 
     let local =
-        local_config::load(config).map_err(|_| format!("no {} found", config.config_file_path))?;
+        local_config::load(config).map_err(|error| format!("failed to load {}: {error}", config.config_file_path))?;
 
     if local.project.id.is_empty() {
         return Err(format!("project id is missing from {}", config.config_file_path).into());
@@ -116,7 +116,7 @@ async fn push_environment(
     let env_display = sanitize(&environment.name);
     let path = env_file_path(config, &environment.name);
     let variables =
-        read_env_file(&path).map_err(|error| format!("failed to read {path}: {error}"))?;
+        read_env_file(&path)?;
 
     if variables.is_empty() {
         println!("No variables found in {path}");

@@ -201,7 +201,7 @@ async fn delete_environment(
 
 fn load_project_id(config: &AppConfig) -> Result<String, Box<dyn Error>> {
     let local =
-        local_config::load(config).map_err(|_| format!("no {} found", config.config_file_path))?;
+        local_config::load(config).map_err(|error| format!("failed to load {}: {error}", config.config_file_path))?;
 
     if local.project.id.is_empty() {
         return Err(format!(

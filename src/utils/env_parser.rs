@@ -1,4 +1,6 @@
-use std::{error::Error, fs};
+use std::error::Error;
+
+use crate::utils::fs_secure;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnvVariable {
@@ -7,7 +9,7 @@ pub struct EnvVariable {
 }
 
 pub fn read_env_file(path: &str) -> Result<Vec<EnvVariable>, Box<dyn Error>> {
-    let content = fs::read_to_string(path)?;
+    let content = fs_secure::safe_read(std::path::Path::new(path))?;
 
     parse_env(&content, path)
 }

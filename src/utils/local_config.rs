@@ -3,6 +3,7 @@ use std::{error::Error, fs, io, path::Path};
 use serde::{Deserialize, Serialize};
 
 use crate::settings::AppConfig;
+use crate::utils::fs_secure;
 
 pub const CREATED_BY_INIT: &str = "init";
 
@@ -53,30 +54,42 @@ pub fn save_identity(
 }
 
 fn write(config: &AppConfig, local: &LocalConfig) -> Result<(), Box<dyn Error>> {
-    fs::create_dir_all(&config.config_dir_name)?;
+    fs_secure::path_inside_cwd(Path::new(&config.config_file_path))?;
+    fs_secure::ensure_secure_dir(Path::new(&config.config_dir_name))?;
 
     let path = Path::new(&config.config_file_path);
-    fs::write(path, toml::to_string(local)?)?;
+    fs_secure::atomic_write_secure(path, &toml::to_string(local)?)?;
 
     Ok(())
 }
 
 #[allow(dead_code)]
 pub fn load(config: &AppConfig) -> Result<LocalConfig, Box<dyn Error>> {
-    let content = fs::read_to_string(&config.config_file_path)?;
+    let content = fs_secure::safe_read(Path::new(&config.config_file_path))?;
 
     Ok(toml::from_str(&content)?)
 }
 
 /// Remove the local project config, ignoring an already-missing file.
+/// A symlink at the target is refused.
 pub fn remove(config: &AppConfig) -> Result<(), Box<dyn Error>> {
     let path = Path::new(&config.config_file_path);
 
-    match fs::remove_file(path) {
-        Ok(()) => {}
+    match fs::symlink_metadata(path) {
+        Ok(meta) => {
+            if meta.file_type().is_symlink() {
+                return Err(format!(
+                    "refusing to remove '{}': it is a symlink",
+                    config.config_file_path
+                )
+                .into());
+            }
+        }
         Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
         Err(error) => return Err(error.into()),
     }
+
+    fs::remove_file(path)?;
 
     if let Some(parent) = path.parent() {
         let _ = fs::remove_dir(parent);
