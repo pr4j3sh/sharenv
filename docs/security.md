@@ -38,6 +38,21 @@ database  -->  sharenv-api (decrypts)  --TLS-->  sharenv CLI  -->  .env.dev (pla
 There is no key material on the client and no client-side encryption of
 variable values.
 
+## Connections and certificate requirements
+
+- TLS is rustls with the platform trust store (`rustls-platform-verifier`) as
+  the default — public CAs work out of the box.
+- Self-hosted deployments with a private CA: pass `--cacert <path>` on the
+  invocation (PEM bundle). It is **additive** to the platform roots, never
+  persisted in config or environment variables.
+- The default local deployment (`http://localhost:8000`) is explicitly allowed;
+  any other plaintext `http://` host is refused unless `--insecure` is passed
+  for that single invocation.
+- The bearer token is never forwardable via redirects: the client does not
+  follow them.
+- Read-only requests are retried up to 3 times with 250/750ms backoff on
+  connection errors, timeouts, 5xx and 429. Writes are never retried.
+
 ## What `sharenv` protects against
 
 - **Accidental commits of `.env*`** when the repository's `.gitignore` covers
@@ -50,6 +65,9 @@ variable values.
   escaped.
 - **Plaintext HTTP to a remote host** by default: non-loopback `http://` URLs
   are rejected unless `--insecure` is passed for that single invocation.
+- **Hanging or misbehaving servers**: connect timeouts (10s), request timeouts
+  (30s), a bounded connection pool, no redirect following (your bearer token can
+  never be forwarded by the server), and idempotent-GET retries with backoff.
 - **Silent transfers to an unexpected project**: the project name and owner are
   printed before pushing or pulling, and pushes to a project you do not own
   require confirmation.

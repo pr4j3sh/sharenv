@@ -2,20 +2,22 @@ use crate::api::client::ApiClient;
 use crate::{
     commands,
     settings::AppConfig,
-    utils::args::{parse_switch, take_profile},
+    utils::args::{parse_switch, take_cacert, take_profile},
 };
 
 pub async fn run_cli(config: &mut AppConfig) -> Result<(), Box<dyn std::error::Error>> {
     let mut args: Vec<String> = std::env::args().collect();
 
-    // `--insecure` and `--profile` are global, per-invocation switches. They
-    // are applied here and deliberately never read from config or environment
-    // variables.
+    // `--insecure`, `--profile` and `--cacert` are global, per-invocation
+    // switches. They are applied here and deliberately never read from
+    // config or environment variables.
     let (remaining, insecure) = parse_switch(args.get(2..).unwrap_or(&[]), &["--insecure"]);
     let (remaining, profile) = take_profile(&remaining)?;
+    let (remaining, cacert) = take_cacert(&remaining)?;
     args.truncate(2);
     args.extend(remaining);
     config.api_config.insecure = insecure;
+    config.api_config.cacert = cacert;
     config.profile = profile;
 
     let cmd = args.get(1).map(String::as_str).unwrap_or("");

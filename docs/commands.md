@@ -4,7 +4,8 @@ Flags accept both space-separated and `=` forms: `--project-id <id>`,
 `--project-id=<id>`, `--role <role>`, `--role=<role>`.
 
 Global options (per invocation, like `--insecure`): `--profile <name>` selects a
-named keyring slot instead of the per-server default.
+named keyring slot instead of the per-server default; `--cacert <path>` adds a
+private CA bundle (PEM) on top of the platform trust store.
 
 Primary entities are positional arguments; subcommands disambiguate; flags are
 modifiers only. The old `-e`/`-p`/`-pid` flags are gone (hard break).

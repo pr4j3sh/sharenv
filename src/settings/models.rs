@@ -27,6 +27,10 @@ pub struct ApiConfig {
     /// in config or supplied through an environment override.
     #[serde(skip)]
     pub insecure: bool,
+    /// Runtime-only `--cacert <path>` for self-hosted deployments with a
+    /// private CA. Never persisted in config or environment variables.
+    #[serde(skip)]
+    pub cacert: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

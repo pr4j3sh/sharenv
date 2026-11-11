@@ -17,23 +17,26 @@ impl ApiClient {
 
         loop {
             let limit = 100u32;
-            let mut request = self
-                .client
-                .get(self.resource(&self.routes.environments, project_id))
-                .query(&[("limit", limit), ("offset", offset)]);
+            let response = crate::api::client::send_get_with_retry(|| {
+                let mut request = self
+                    .client
+                    .get(self.resource(&self.routes.environments, project_id))
+                    .query(&[("limit", limit), ("offset", offset)]);
 
-            if let Some(environment_name) = environment_name {
-                request = request.query(&[(
-                    self.routes.environment_name_param.as_str(),
-                    environment_name,
-                )]);
-            }
+                if let Some(environment_name) = environment_name {
+                    request = request.query(&[(
+                        self.routes.environment_name_param.as_str(),
+                        environment_name,
+                    )]);
+                }
 
-            if let Some(token) = &self.token {
-                request = request.bearer_auth(token);
-            }
+                if let Some(token) = &self.token {
+                    request = request.bearer_auth(token);
+                }
 
-            let response = request.send().await?;
+                request
+            })
+            .await?;
 
             if !response.status().is_success() {
                 return Err(Box::new(api_error(response).await));

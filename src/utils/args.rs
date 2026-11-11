@@ -14,6 +14,54 @@ pub fn parse_switch(args: &[String], names: &[&str]) -> (Vec<String>, bool) {
     (remaining, found)
 }
 
+/// Remove `--cacert <path>` from `args` and return the path. Additive to the
+/// platform trust store; per-invocation only, never persisted.
+pub fn take_cacert(
+    args: &[String],
+) -> Result<(Vec<String>, Option<String>), Box<dyn std::error::Error>> {
+    let mut remaining = Vec::with_capacity(args.len());
+    let mut cacert: Option<String> = None;
+    let mut iter = args.iter();
+
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--cacert" => {
+                let value = iter.next().ok_or("missing value for --cacert")?;
+
+                if value.starts_with('-') {
+                    return Err("missing value for --cacert".into());
+                }
+
+                let path = std::path::Path::new(value);
+
+                if !path.is_file() {
+                    return Err(format!("--cacert '{value}' is not a file").into());
+                }
+
+                cacert = Some(value.clone());
+            }
+            value if value.starts_with("--cacert=") => {
+                let value = &value["--cacert=".len()..];
+
+                if value.is_empty() {
+                    return Err("missing value for --cacert".into());
+                }
+
+                let path = std::path::Path::new(value);
+
+                if !path.is_file() {
+                    return Err(format!("--cacert '{value}' is not a file").into());
+                }
+
+                cacert = Some(value.to_string());
+            }
+            _ => remaining.push(arg.clone()),
+        }
+    }
+
+    Ok((remaining, cacert))
+}
+
 /// Remove `--profile <name>` from `args` and return it validated+normalized.
 /// Profile namespaces the keyring slot for this invocation only; it cannot be
 /// persisted in config or environment variables.

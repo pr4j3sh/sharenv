@@ -36,6 +36,7 @@ pub fn run(config: &AppConfig) {
     println!("GLOBAL OPTIONS:");
     println!("    --insecure    Allow plaintext HTTP to a non-local host (not recommended)");
     println!("    --profile     Use a named keyring slot for this invocation (e.g. --profile work)");
+    println!("    --cacert PATH Add a private CA bundle (PEM) on top of the platform trust store");
     println!();
     println!("OUTPUT:");
     println!("    Variable values are hidden by default. Pass --show-values to reveal");
