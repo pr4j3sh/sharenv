@@ -38,6 +38,10 @@ pub fn parse_line(raw_line: &str) -> Option<Result<EnvVariable, String>> {
         return Some(Err("empty variable name".to_string()));
     }
 
+    if let Err(error) = crate::utils::validation::validate_variable_name(name) {
+        return Some(Err(error.to_string()));
+    }
+
     Some(Ok(EnvVariable {
         name: name.to_string(),
         value: parse_value(raw_value.trim()),
@@ -45,8 +49,19 @@ pub fn parse_line(raw_line: &str) -> Option<Result<EnvVariable, String>> {
 }
 
 /// Format a variable as a `.env` line, quoting values when needed.
-pub fn format_line(variable: &EnvVariable) -> String {
-    format!("{}={}", variable.name, format_value(&variable.value))
+///
+/// The name is validated again as a defense-in-depth check: even a path that
+/// never went through `read_env_file` cannot cause line injection here.
+pub fn format_line(variable: &EnvVariable) -> Result<String, Box<dyn Error>> {
+    crate::utils::validation::validate_variable_name(&variable.name)?;
+
+    Ok(format!("{}={}", variable.name, format_value(&variable.value)))
+}
+
+/// Error-free variant of `parse_env` for callers that only care whether the
+/// whole file parses.
+pub fn validate_env(content: &str, path: &str) -> Result<(), Box<dyn Error>> {
+    parse_env(content, path).map(|_| ())
 }
 
 fn parse_env(content: &str, path: &str) -> Result<Vec<EnvVariable>, Box<dyn Error>> {
@@ -116,6 +131,9 @@ fn unescape_double_quoted(value: &str) -> String {
             Some('t') => result.push('\t'),
             Some('\\') => result.push('\\'),
             Some('"') => result.push('"'),
+            Some('$') => result.push('$'),
+            Some('`') => result.push('`'),
+            Some('!') => result.push('!'),
             Some(other) => {
                 result.push('\\');
                 result.push(other);
@@ -152,6 +170,9 @@ fn format_value(value: &str) -> String {
     let escaped = value
         .replace('\\', "\\\\")
         .replace('"', "\\\"")
+        .replace('$', "\\$")
+        .replace('`', "\\`")
+        .replace('!', "\\!")
         .replace('\n', "\\n")
         .replace('\r', "\\r")
         .replace('\t', "\\t");

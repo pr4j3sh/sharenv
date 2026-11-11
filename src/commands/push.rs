@@ -7,7 +7,7 @@ use crate::{
     models::EnvironmentModel,
     settings::AppConfig,
     utils::{
-        args::{parse_switch, take_positional},
+        args::{parse_switches, take_positional},
         env_changes::filter_decryptable,
         env_file::env_file_path,
         env_parser::read_env_file,
@@ -24,6 +24,7 @@ use crate::{
 #[derive(Serialize, Default)]
 struct EnvPushSummary {
     environment: String,
+    dry_run: bool,
     created: Vec<String>,
     updated: Vec<String>,
     unchanged: Vec<String>,
@@ -36,7 +37,7 @@ struct EnvPushSummary {
 
 pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>> {
     let json = config.json_output;
-    let (args, show_values) = parse_switch(args, &["--show-values"]);
+    let (args, show_values, dry_run) = parse_switches(args, &["--show-values"], &["--dry-run"]);
     let env_name = take_positional(&args)?;
 
     if let Some(env_name) = &env_name {
@@ -76,9 +77,9 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
                 .find(|environment| environment.name == env_name)
                 .ok_or_else(|| format!("environment '{env_name}' not found"))?;
 
-            vec![push_environment(config, &client, &environment, show_values).await?]
+            vec![push_environment(config, &client, &environment, show_values, dry_run).await?]
         }
-        None => push_all_environments(config, &client, &local.project.id, show_values).await?,
+        None => push_all_environments(config, &client, &local.project.id, show_values, dry_run).await?,
     };
 
     if json {
@@ -93,6 +94,7 @@ async fn push_all_environments(
     client: &ApiClient,
     project_id: &str,
     show_values: bool,
+    dry_run: bool,
 ) -> Result<Vec<EnvPushSummary>, Box<dyn Error>> {
     let json = config.json_output;
     let environments = client.get_environments(project_id, None).await?;
@@ -108,7 +110,7 @@ async fn push_all_environments(
         .collect::<Vec<_>>()
         .join(", ");
 
-    if !prompt::confirm(&format!("Push all environments ({names})? [y/N]: "))? {
+    if !dry_run && !prompt::confirm(&format!("Push all environments ({names})? [y/N]: "))? {
         output::line(json, "Cancelled.");
         return Ok(Vec::new());
     }
@@ -124,7 +126,7 @@ async fn push_all_environments(
         }
 
         output::line(json, format!("Environment '{}':", sanitize(&environment.name)));
-        summaries.push(push_environment(config, client, &environment, show_values).await?);
+        summaries.push(push_environment(config, client, &environment, show_values, dry_run).await?);
     }
 
     Ok(summaries)
@@ -135,6 +137,7 @@ async fn push_environment(
     client: &ApiClient,
     environment: &EnvironmentModel,
     show_values: bool,
+    dry_run: bool,
 ) -> Result<EnvPushSummary, Box<dyn Error>> {
     let json = config.json_output;
     let env_display = sanitize(&environment.name);
@@ -146,6 +149,7 @@ async fn push_environment(
 
         let mut summary = EnvPushSummary {
             environment: environment.name.clone(),
+            dry_run,
             ..EnvPushSummary::default()
         };
 
@@ -182,6 +186,10 @@ async fn push_environment(
         }
 
         match remote_by_name.remove(&variable.name) {
+            None if dry_run => {
+                summary.created.push(variable.name.clone());
+                output::line(json, format!("+ {name} (dry run)"));
+            }
             None => match client
                 .create_variable(&environment._id, variable.name.clone(), variable.value)
                 .await
@@ -216,7 +224,10 @@ async fn push_environment(
                     output::line(json, format!("  local:  {}", sanitize(&variable.value)));
                 }
 
-                if prompt::confirm(&format!("Update remote value for '{name}'? [y/N]: "))? {
+                if dry_run {
+                    summary.updated.push(variable.name.clone());
+                    output::line(json, format!("~ {name} (dry run)"));
+                } else if prompt::confirm(&format!("Update remote value for '{name}'? [y/N]: "))? {
                     client
                         .update_variable(&remote._id, variable.value.clone())
                         .await
@@ -233,10 +244,11 @@ async fn push_environment(
 
     summary.values = values;
 
+    let verb = if dry_run { "Would push" } else { "Pushed" };
     output::line(
         json,
         format!(
-            "Pushed to '{env_display}': {} created, {} updated, {} unchanged, {} skipped, {} kept",
+            "{verb} to '{env_display}': {} created, {} updated, {} unchanged, {} skipped, {} kept",
             summary.created.len(),
             summary.updated.len(),
             summary.unchanged.len(),

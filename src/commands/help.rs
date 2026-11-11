@@ -17,9 +17,9 @@ pub fn run(config: &AppConfig) {
     println!("    init, i       Initialize a project [name] [--adopt]");
     println!("                  Bare name initializes with the current directory's name");
     println!("    add, a        Create an environment <environment>");
-    println!("    push          Push variables [environment] [--show-values]");
+    println!("    push          Push variables [environment] [--show-values] [--dry-run]");
     println!("                  Omit [environment] to push all environments with local .env files");
-    println!("    pull          Pull variables [environment] [--show-values] [--project-id <project_id>]");
+    println!("    pull          Pull variables [environment] [--show-values] [--project-id <project_id>] [--dry-run]");
     println!("                  Omit [environment] to pull all environments");
     println!("                  Use --project-id to pull a shared project without a local .sharenv config");
     println!("    invite        Invite a user to the current project <email> [--role <writer|reader>]");

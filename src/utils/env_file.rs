@@ -67,12 +67,16 @@ pub fn write_env_changes(
             *line = format_line(&EnvVariable {
                 name: variable.name,
                 value: value.clone(),
-            });
+            })
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))?;
         }
     }
 
     for variable in additions {
-        lines.push(format_line(variable));
+        lines.push(
+            format_line(variable)
+                .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))?,
+        );
     }
 
     let mut output = lines.join("\n");
@@ -80,6 +84,15 @@ pub fn write_env_changes(
     if !output.is_empty() {
         output.push('\n');
     }
+
+    // Never write something we could not parse back: this also guarantees
+    // the output has no duplicate keys and no invalid names.
+    crate::utils::env_parser::validate_env(&output, path).map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("refusing to write {path}: {error}"),
+        )
+    })?;
 
     fs_secure::atomic_write_secure(path_ref, &output)
 }
