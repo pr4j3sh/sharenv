@@ -1,5 +1,7 @@
 use std::error::Error;
 
+use zeroize::Zeroize;
+
 use crate::{
     settings::AppConfig,
     utils::{
@@ -46,7 +48,7 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
         "grant access to which environments? (names, 'all') [all]: ",
     )?;
 
-    let password = prompt_password("your password (required to share): ")?;
+    let mut password = prompt_password("your password (required to share): ")?;
 
     let invitation = client
         .create_invitation(
@@ -57,6 +59,8 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
             &password,
         )
         .await?;
+
+    password.zeroize();
 
     let granted_names = environment_names_for(&invitation.environments, &environments);
 

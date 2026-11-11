@@ -1,5 +1,7 @@
 use std::error::Error;
 
+use zeroize::Zeroize;
+
 use crate::{
     api::client::ApiClient,
     commands::verify,
@@ -10,14 +12,16 @@ use crate::{
 };
 
 pub async fn run(client: &ApiClient, config: &AppConfig) -> Result<(), Box<dyn Error>> {
-    let (email, password) = prompt_credentials()?;
+    let (email, mut password) = prompt_credentials()?;
 
     if password.chars().count() < 12 {
+        password.zeroize();
         return Err("password must be at least 12 characters long".into());
     }
 
     let email = email.trim().to_lowercase();
-    let auth = client.register(email.clone(), password).await?;
+    let auth = client.register(&email, &password).await?;
+    password.zeroize();
 
     println!("Registered '{}'.", sanitize(&email));
 
@@ -26,8 +30,13 @@ pub async fn run(client: &ApiClient, config: &AppConfig) -> Result<(), Box<dyn E
         return Ok(());
     }
 
-    token::save_pending_verify(&config.auth, &email)
-        .map_err(|error| format!("failed to save your email for verification: {error}"))?;
+    token::save_pending_verify(
+        &config.auth,
+        &config.api_config.base_url,
+        config.profile.as_deref(),
+        &email,
+    )
+    .map_err(|error| format!("failed to save your email for verification: {error}"))?;
 
     println!("A verification code was sent to '{}'.", sanitize(&email));
 
@@ -41,5 +50,5 @@ pub async fn run(client: &ApiClient, config: &AppConfig) -> Result<(), Box<dyn E
         return Ok(());
     }
 
-    verify::verify_flow(config, &email, otp).await
+    verify::verify_flow(config, &email, &otp).await
 }

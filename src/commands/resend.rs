@@ -32,7 +32,10 @@ fn resolve_email(config: &AppConfig, args: &[String]) -> Result<String, Box<dyn 
         return Ok(email);
     }
 
-    if let Some(email) = token::get_pending_verify(&config.auth)? {
+    let base_url = &config.api_config.base_url;
+    let profile = config.profile.as_deref();
+
+    if let Some(email) = token::get_pending_verify(&config.auth, base_url, profile)? {
         return Ok(email);
     }
 

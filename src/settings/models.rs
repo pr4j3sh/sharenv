@@ -11,6 +11,11 @@ pub struct AppConfig {
     pub api_config: ApiConfig,
     pub auth: AuthConfig,
     pub environment_files: EnvironmentFilesConfig,
+    /// Runtime-only `--profile` switch, like `insecure` it is deliberately
+    /// skipped during deserialization so it cannot be persisted in config or
+    /// supplied through an environment override.
+    #[serde(skip)]
+    pub profile: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

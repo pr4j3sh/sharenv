@@ -13,6 +13,7 @@ pub fn run(config: &AppConfig) {
     println!("    logout        Revoke your server-side session and remove local tokens");
     println!("    verify        Verify your account with the emailed code [email]");
     println!("    resend        Resend the verification code [email]");
+    println!("    whoami        Show the logged-in user, session, API URL and keyring slot");
     println!("    init, i       Initialize a project [name] [--adopt]");
     println!("                  Bare name initializes with the current directory's name");
     println!("    add, a        Create an environment <environment>");
@@ -34,6 +35,7 @@ pub fn run(config: &AppConfig) {
     println!();
     println!("GLOBAL OPTIONS:");
     println!("    --insecure    Allow plaintext HTTP to a non-local host (not recommended)");
+    println!("    --profile     Use a named keyring slot for this invocation (e.g. --profile work)");
     println!();
     println!("OUTPUT:");
     println!("    Variable values are hidden by default. Pass --show-values to reveal");

@@ -9,10 +9,13 @@ use crate::{
 impl ApiClient {
     pub async fn register(
         &self,
-        email: String,
-        password: String,
+        email: &str,
+        password: &str,
     ) -> Result<RegisterModel, Box<dyn Error>> {
-        let payload = crate::models::AuthRequest { email, password };
+        let payload = crate::models::AuthRequest {
+            email: email.to_string(),
+            password: password.to_string(),
+        };
 
         let response = self
             .client
@@ -30,10 +33,13 @@ impl ApiClient {
 
     pub async fn login(
         &self,
-        email: String,
-        password: String,
+        email: &str,
+        password: &str,
     ) -> Result<LoginModel, Box<dyn Error>> {
-        let payload = crate::models::AuthRequest { email, password };
+        let payload = crate::models::AuthRequest {
+            email: email.to_string(),
+            password: password.to_string(),
+        };
 
         let response = self
             .client
@@ -53,12 +59,14 @@ impl ApiClient {
     /// single-use; a successful call rotates it.
     pub async fn refresh(
         &self,
-        refresh_token: String,
+        refresh_token: &str,
     ) -> Result<SessionTokens, Box<dyn Error>> {
         let response = self
             .client
             .post(self.url(&self.routes.refresh))
-            .json(&crate::models::RefreshRequest { refresh_token })
+            .json(&crate::models::RefreshRequest {
+                refresh_token: refresh_token.to_string(),
+            })
             .send()
             .await?;
 
@@ -72,7 +80,7 @@ impl ApiClient {
     pub async fn verify(
         &self,
         email: &str,
-        otp: String,
+        otp: &str,
     ) -> Result<SessionTokens, Box<dyn Error>> {
         let email = email.trim().to_lowercase();
         let response = self
@@ -80,7 +88,7 @@ impl ApiClient {
             .post(self.url(&self.routes.verify))
             .json(&crate::models::VerifyRequest {
                 email: email.clone(),
-                otp,
+                otp: otp.to_string(),
             })
             .send()
             .await?;

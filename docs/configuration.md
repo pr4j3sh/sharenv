@@ -36,9 +36,21 @@ env_file_prefix = ".env"
 ```
 
 Access and refresh tokens are stored in the OS keyring (service/account per
-`[auth]`). The refresh token lives at `token_account-refresh` and a pending
-verification email (if any) at `token_account-pending-verify`; there is no
-plaintext token file.
+`[auth]`); there is no plaintext token file. Keyring account names are
+
+- **derived per server**: `<token_account>-<fnv1a64(base_url) hex>`, so sessions
+  against different servers (dev/prod) never overwrite each other, and
+- **or namespaced explicitly** with the per-invocation `--profile <name>` flag.
+
+The refresh token lives at `<slot>-refresh` and a pending verification email
+(if any) at `<slot>-pending-verify`. On your first run after upgrading to this
+scheme, the CLI sees a new (empty) slot — just log in again.
+
+```bash
+sharenv login                       # slot: default-<fnv1a64(base_url)>
+sharenv login --profile work        # slot: default-work
+sharenv whoami                      # show slot, user, session expiry, API URL
+```
 
 Non-HTTPS URLs are rejected unless the host is loopback. Use `--insecure` on a
 single command to override that check; it cannot be stored in config or in an

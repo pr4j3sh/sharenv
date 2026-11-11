@@ -13,3 +13,4 @@ pub mod push;
 pub mod register;
 pub mod resend;
 pub mod verify;
+pub mod whoami;

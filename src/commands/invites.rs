@@ -1,5 +1,7 @@
 use std::error::Error;
 
+use zeroize::Zeroize;
+
 use crate::{
     settings::AppConfig,
     utils::{
@@ -88,9 +90,10 @@ async fn cancel(config: &AppConfig, invitation_id: &str) -> Result<(), Box<dyn E
         .into());
     }
 
-    let password = rpassword::prompt_password("your password: ")?;
+    let mut password = rpassword::prompt_password("your password: ")?;
 
     if password.is_empty() {
+        password.zeroize();
         return Err("password cannot be empty".into());
     }
 
@@ -98,6 +101,7 @@ async fn cancel(config: &AppConfig, invitation_id: &str) -> Result<(), Box<dyn E
     client
         .cancel_invitation(&local.project.id, invitation_id, &password)
         .await?;
+    password.zeroize();
 
     println!("Cancelled invitation '{}'.", sanitize(invitation_id));
 

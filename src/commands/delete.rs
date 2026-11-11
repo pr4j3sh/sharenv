@@ -1,5 +1,7 @@
 use std::error::Error;
 
+use zeroize::Zeroize;
+
 use crate::{
     settings::AppConfig,
     utils::{
@@ -95,9 +97,10 @@ async fn delete_current_project(config: &AppConfig, yes: bool) -> Result<(), Box
         return Ok(());
     }
 
-    let password = prompt_password()?;
+    let mut password = prompt_password()?;
     let client = session::authenticated_client(config).await?;
     let deleted = client.delete_project(&project_id, &password).await?;
+    password.zeroize();
 
     local_config::remove(config).map_err(|error| {
         format!(
@@ -131,9 +134,10 @@ async fn delete_project_by_name(
         return Ok(());
     }
 
-    let password = prompt_password()?;
+    let mut password = prompt_password()?;
     let client = session::authenticated_client(config).await?;
     let deleted = client.delete_project_by_name(project_name, &password).await?;
+    password.zeroize();
 
     let local_id = local_config::load(config)
         .ok()

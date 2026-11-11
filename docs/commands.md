@@ -3,6 +3,9 @@
 Flags accept both space-separated and `=` forms: `--project-id <id>`,
 `--project-id=<id>`, `--role <role>`, `--role=<role>`.
 
+Global options (per invocation, like `--insecure`): `--profile <name>` selects a
+named keyring slot instead of the per-server default.
+
 Primary entities are positional arguments; subcommands disambiguate; flags are
 modifiers only. The old `-e`/`-p`/`-pid` flags are gone (hard break).
 
@@ -13,6 +16,7 @@ modifiers only. The old `-e`/`-p`/`-pid` flags are gone (hard break).
 | `logout`   | —                   | —                                                        | Revoke the server-side session and remove local tokens.                                      |
 | `verify`   | —                   | `[email]`                                                | Verify an account with the emailed code (defaults to the email saved at registration). Saves the session on success. |
 | `resend`   | —                   | `[email]`                                                | Resend the verification code.                                                               |
+| `whoami`   | —                   | —                                                        | Show the logged-in user, session expiry, API URL and keyring slot (local, unverified; never prints tokens). |
 | `init`     | `i`                 | `[name]`, `--adopt`                                      | Create the remote project and local `.env` files. Defaults to the current directory's name; pass a name to override. `--adopt` records identity for an existing project. |
 | `invite`   | —                   | `<email>`, `--role <writer\|reader>`                     | Invite a user to the current project (owner only; re-authenticates with your password). |
 | `members`  | —                   | `role <email> <writer\|reader>`, `environment <email>`    | Change a member's role or re-pick their environment grants (owner-only; re-authenticates with your password). Listing members uses `list members`. |

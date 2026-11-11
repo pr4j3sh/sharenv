@@ -3,19 +3,22 @@ use std::error::Error;
 use crate::{settings::AppConfig, utils::session, utils::token};
 
 pub async fn run(config: &AppConfig) -> Result<(), Box<dyn Error>> {
+    let base_url = &config.api_config.base_url;
+    let profile = config.profile.as_deref();
+
     let server_result = match session::authenticated_client(config).await {
         Ok(client) => client.logout().await,
         Err(error) => {
             // Cannot refresh/build an authenticated client (e.g. never logged
             // in, or offline). Still clear whatever tokens we hold locally.
-            token::clear_session(&config.auth)?;
+            token::clear_session(&config.auth, base_url, profile)?;
             eprintln!("warning: {error}");
             eprintln!("cleared the local session; the server may not have been notified");
             return Ok(());
         }
     };
 
-    let cleared = token::clear_session(&config.auth);
+    let cleared = token::clear_session(&config.auth, base_url, profile);
 
     match (server_result, cleared) {
         (Ok(_), Ok(())) => {

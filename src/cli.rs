@@ -2,18 +2,21 @@ use crate::api::client::ApiClient;
 use crate::{
     commands,
     settings::AppConfig,
-    utils::args::parse_switch,
+    utils::args::{parse_switch, take_profile},
 };
 
 pub async fn run_cli(config: &mut AppConfig) -> Result<(), Box<dyn std::error::Error>> {
     let mut args: Vec<String> = std::env::args().collect();
 
-    // `--insecure` is a global, per-invocation switch. It is applied here and
-    // deliberately never read from config or environment variables.
+    // `--insecure` and `--profile` are global, per-invocation switches. They
+    // are applied here and deliberately never read from config or environment
+    // variables.
     let (remaining, insecure) = parse_switch(args.get(2..).unwrap_or(&[]), &["--insecure"]);
+    let (remaining, profile) = take_profile(&remaining)?;
     args.truncate(2);
     args.extend(remaining);
     config.api_config.insecure = insecure;
+    config.profile = profile;
 
     let cmd = args.get(1).map(String::as_str).unwrap_or("");
 
@@ -29,6 +32,7 @@ pub async fn run_cli(config: &mut AppConfig) -> Result<(), Box<dyn std::error::E
         "logout" => commands::logout::run(config).await?,
         "verify" => commands::verify::run(config, args.get(2..).unwrap_or(&[])).await?,
         "resend" => commands::resend::run(config, args.get(2..).unwrap_or(&[])).await?,
+        "whoami" => commands::whoami::run(config).await?,
         "init" | "i" => {
             let (init_args, adopt) = parse_switch(args.get(2..).unwrap_or(&[]), &["--adopt"]);
             commands::init::run(config, init_args, adopt).await?

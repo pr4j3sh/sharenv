@@ -9,6 +9,8 @@
 //! token lifetime can still see a 401 mid-run (e.g. while sitting at a
 //! prompt). Those errors surface with a clear "run 'sharenv login'" hint.
 
+use zeroize::Zeroize;
+
 use crate::{
     api::client::ApiClient,
     settings::AppConfig,
@@ -20,7 +22,10 @@ use crate::{
 pub async fn authenticated_client(
     config: &AppConfig,
 ) -> Result<ApiClient, Box<dyn std::error::Error>> {
-    let token = token::get_token(&config.auth)?.ok_or_else(|| {
+    let profile = config.profile.as_deref();
+    let base_url = &config.api_config.base_url;
+
+    let token = token::get_token(&config.auth, base_url, profile)?.ok_or_else(|| {
         format!(
             "not logged in; run '{} login' first",
             env!("CARGO_PKG_NAME")
@@ -28,6 +33,7 @@ pub async fn authenticated_client(
     })?;
 
     let token = if jwt::expiring_within(&token, 60) {
+        // The access token is unusable; the server needs the refresh token.
         refresh_session(config).await?
     } else {
         token
@@ -42,7 +48,10 @@ pub fn current_user(client: &ApiClient) -> Option<String> {
 }
 
 async fn refresh_session(config: &AppConfig) -> Result<String, Box<dyn std::error::Error>> {
-    let refresh_token = token::get_refresh_token(&config.auth)?.ok_or_else(|| {
+    let profile = config.profile.as_deref();
+    let base_url = &config.api_config.base_url;
+
+    let mut refresh_token = token::get_refresh_token(&config.auth, base_url, profile)?.ok_or_else(|| {
         format!(
             "your session expired and no refresh token is stored; run '{} login' again",
             env!("CARGO_PKG_NAME")
@@ -50,13 +59,16 @@ async fn refresh_session(config: &AppConfig) -> Result<String, Box<dyn std::erro
     })?;
 
     let client = ApiClient::new(&config.api_config)?;
-    let tokens = match client.refresh(refresh_token).await {
+    let result = client.refresh(&refresh_token).await;
+    refresh_token.zeroize();
+
+    let tokens = match result {
         Ok(tokens) => tokens,
         Err(_) => {
             // The refresh token is dead too; drop whatever remains locally so
             // the user starts from a clean slate. The server does not need to
             // be told: an invalid refresh token cannot be revoked anyway.
-            let _ = token::delete_session_tokens(&config.auth);
+            let _ = token::delete_session_tokens(&config.auth, base_url, profile);
             return Err(format!(
                 "your saved session expired or was revoked; run '{} login' again",
                 env!("CARGO_PKG_NAME")
@@ -65,9 +77,18 @@ async fn refresh_session(config: &AppConfig) -> Result<String, Box<dyn std::erro
         }
     };
 
-    token::save_session(&config.auth, &tokens.token, &tokens.refresh_token).map_err(
-        |error| format!("refreshed session but failed to save the new tokens: {error}"),
-    )?;
+    token::save_session(
+        &config.auth,
+        base_url,
+        profile,
+        &tokens.token,
+        &tokens.refresh_token,
+    )
+    .map_err(|error| format!("refreshed session but failed to save the new tokens: {error}"))?;
 
-    Ok(tokens.token)
+    let access = tokens.token;
+    let mut refresh = tokens.refresh_token;
+    refresh.zeroize();
+
+    Ok(access)
 }

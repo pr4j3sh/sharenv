@@ -1,5 +1,7 @@
 use std::error::Error;
 
+use zeroize::Zeroize;
+
 use crate::{
     commands::invite::prompt_password,
     settings::AppConfig,
@@ -83,7 +85,7 @@ async fn role(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>>
         return Err("cannot change the project owner's role".into());
     }
 
-    let password = prompt_password("your password: ")?;
+    let mut password = prompt_password("your password: ")?;
     let updated = client
         .update_member_access(
             &project_id,
@@ -93,6 +95,7 @@ async fn role(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>>
             &password,
         )
         .await?;
+    password.zeroize();
 
     let grants = environment_names_for(&updated.environments, &environments).join(", ");
 
@@ -133,7 +136,7 @@ async fn envs(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>>
         ),
     )?;
 
-    let password = prompt_password("your password: ")?;
+    let mut password = prompt_password("your password: ")?;
     let role = member.role.clone();
     let updated = client
         .update_member_access(
@@ -144,6 +147,7 @@ async fn envs(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>>
             &password,
         )
         .await?;
+    password.zeroize();
 
     let grants = environment_names_for(&updated.environments, &environments).join(", ");
 
