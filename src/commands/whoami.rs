@@ -35,6 +35,24 @@ pub async fn run(config: &AppConfig) -> Result<(), Box<dyn Error>> {
     let slot = token::account_for(&config.auth, base_url, profile);
     let pending = token::get_pending_verify(&config.auth, base_url, profile)?.is_some();
 
+    if config.json_output {
+        let subject = jwt::subject(&token).unwrap_or_default();
+        let expiry = jwt::expiry(&token);
+
+        crate::utils::output::json(&serde_json::json!({
+            "user": subject,
+            "expires_at": expiry.map(|exp| chrono::DateTime::<chrono::Utc>::from_timestamp(exp, 0))
+                .map(|dt| dt.map(|d| d.to_rfc3339()))
+                .flatten(),
+            "base_url": base_url,
+            "profile": profile.unwrap_or("(default)"),
+            "keyring_slot": slot,
+            "pending_verification": pending,
+        }));
+
+        return Ok(());
+    }
+
     println!("user:     {subject}");
     println!("session:  {expiry_info}");
     println!("api:      {base_url}");

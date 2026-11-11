@@ -1,8 +1,10 @@
+use std::io::IsTerminal;
+
 use crate::api::client::ApiClient;
 use crate::{
     commands,
     settings::AppConfig,
-    utils::args::{parse_switch, take_cacert, take_profile},
+    utils::args::{parse_switch, parse_switches, take_cacert, take_profile},
 };
 
 pub async fn run_cli(config: &mut AppConfig) -> Result<(), Box<dyn std::error::Error>> {
@@ -11,7 +13,7 @@ pub async fn run_cli(config: &mut AppConfig) -> Result<(), Box<dyn std::error::E
     // `--insecure`, `--profile` and `--cacert` are global, per-invocation
     // switches. They are applied here and deliberately never read from
     // config or environment variables.
-    let (remaining, insecure) = parse_switch(args.get(2..).unwrap_or(&[]), &["--insecure"]);
+    let (remaining, insecure, json) = parse_switches(args.get(2..).unwrap_or(&[]), &["--insecure"], &["--json"]);
     let (remaining, profile) = take_profile(&remaining)?;
     let (remaining, cacert) = take_cacert(&remaining)?;
     args.truncate(2);
@@ -19,8 +21,14 @@ pub async fn run_cli(config: &mut AppConfig) -> Result<(), Box<dyn std::error::E
     config.api_config.insecure = insecure;
     config.api_config.cacert = cacert;
     config.profile = profile;
+    config.json_output = json;
+    crate::utils::output::set_json_output(json);
 
     let cmd = args.get(1).map(String::as_str).unwrap_or("");
+
+    if matches!(cmd, "push" | "pull") && !config.json_output && !std::io::stdout().is_terminal() {
+        eprintln!("warning: stdout is not a TTY; values may be captured in logs");
+    }
 
     match cmd {
         "register" | "r" => {

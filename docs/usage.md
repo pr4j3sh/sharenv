@@ -14,7 +14,8 @@ machine) with `sharenv verify [email]`; `sharenv resend` sends a new code.
 Sessions use short-lived access tokens with a rotating refresh token; the CLI
 refreshes automatically. `sharenv logout` revokes the session server-side and
 removes the local tokens. `sharenv whoami` shows the logged-in user, session
-expiry and which keyring slot is in use.
+expiry and which keyring slot is in use. Add `--json` for machine-readable
+output (`list`, `whoami`, `push`, `pull`); progress goes to stderr.
 
 Keyring slots are derived per server (`<token_account>-<fnv1a64(base_url)>`) so
 dev and production sessions don't overwrite each other; pass `--profile <name>`

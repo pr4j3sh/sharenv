@@ -34,11 +34,35 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
 }
 
 pub async fn list_impl(config: &AppConfig) -> Result<(), Box<dyn Error>> {
+    let json = config.json_output;
     let project_id = project_id(config)?;
     let client = session::authenticated_client(config).await?;
 
     let environments = client.get_environments(&project_id, None).await?;
     let members = client.list_members(&project_id).await?;
+
+    if json {
+        let items: Vec<serde_json::Value> = members
+            .iter()
+            .map(|member| {
+                let grants = environment_names_for(&member.environments, &environments);
+                let email = if member.email.is_empty() {
+                    format!("<unknown: {}>", member.user_id)
+                } else {
+                    member.email.clone()
+                };
+
+                serde_json::json!({
+                    "email": email,
+                    "role": member.role,
+                    "environments": grants,
+                })
+            })
+            .collect();
+
+        crate::utils::output::json(&items);
+        return Ok(());
+    }
 
     println!(
         "{:<35} {:<8} {}",

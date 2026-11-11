@@ -10,7 +10,7 @@ use crate::{
     api::client::ApiClient,
     models::ProjectModel,
     settings::AppConfig,
-    utils::{local_config, output::sanitize, prompt},
+    utils::{local_config, output::{line, sanitize}, prompt},
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -45,10 +45,13 @@ pub async fn authorize(
 
     let is_owner = current_user.is_some_and(|user| user == project.user_id);
     let user_known = current_user.is_some();
-    println!(
-        "Project: {} (owner: {})",
-        sanitize(&project.name),
-        owner_label(&project, is_owner, user_known)
+    line(
+        config.json_output,
+        format!(
+            "Project: {} (owner: {})",
+            sanitize(&project.name),
+            owner_label(&project, is_owner, user_known)
+        ),
     );
 
     let identity = check_local_identity(config, &project);
@@ -103,7 +106,7 @@ pub async fn authorize(
         };
 
         if !prompt::confirm(&prompt_text)? {
-            println!("Cancelled.");
+            line(config.json_output, "Cancelled.");
             return Ok(None);
         }
     }

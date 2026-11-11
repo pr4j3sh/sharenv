@@ -5,7 +5,10 @@ Flags accept both space-separated and `=` forms: `--project-id <id>`,
 
 Global options (per invocation, like `--insecure`): `--profile <name>` selects a
 named keyring slot instead of the per-server default; `--cacert <path>` adds a
-private CA bundle (PEM) on top of the platform trust store.
+private CA bundle (PEM) on top of the platform trust store; `--json` emits a
+single JSON document on stdout for `list projects`, `list environments`,
+`list members`, `whoami`, `push` and `pull` (progress goes to stderr). Values
+appear in JSON output only with `--show-values`.
 
 Primary entities are positional arguments; subcommands disambiguate; flags are
 modifiers only. The old `-e`/`-p`/`-pid` flags are gone (hard break).

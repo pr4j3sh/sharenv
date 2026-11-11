@@ -1,17 +1,32 @@
 /// Remove boolean switches from `args` and report whether any were present.
 pub fn parse_switch(args: &[String], names: &[&str]) -> (Vec<String>, bool) {
+    let (remaining, found, _) = parse_switches(args, names, &[]);
+
+    (remaining, found)
+}
+
+/// Remove two groups of boolean switches from `args` and report which were
+/// present.
+pub fn parse_switches(
+    args: &[String],
+    first: &[&str],
+    second: &[&str],
+) -> (Vec<String>, bool, bool) {
     let mut remaining = Vec::with_capacity(args.len());
-    let mut found = false;
+    let mut first_found = false;
+    let mut second_found = false;
 
     for arg in args {
-        if names.contains(&arg.as_str()) {
-            found = true;
+        if first.contains(&arg.as_str()) {
+            first_found = true;
+        } else if second.contains(&arg.as_str()) {
+            second_found = true;
         } else {
             remaining.push(arg.clone());
         }
     }
 
-    (remaining, found)
+    (remaining, first_found, second_found)
 }
 
 /// Remove `--cacert <path>` from `args` and return the path. Additive to the

@@ -5,22 +5,27 @@ use crate::{models::VariableModel, utils::env_parser::EnvVariable, utils::output
 /// Split out remote variables whose values the server could not decrypt and
 /// report each one. They are skipped everywhere: they cannot be diffed and
 /// must never be written into a local .env file.
-pub fn filter_decryptable(remote: Vec<VariableModel>) -> Vec<VariableModel> {
-    remote
-        .into_iter()
-        .filter(|variable| {
-            let undecryptable = variable.undecryptable || variable.value.is_none();
+pub fn filter_decryptable(
+    remote: Vec<VariableModel>,
+) -> (Vec<VariableModel>, Vec<VariableModel>) {
+    let mut usable = Vec::with_capacity(remote.len());
+    let mut skipped = Vec::new();
 
-            if undecryptable {
-                eprintln!(
-                    "warning: skipping '{}': the server could not decrypt this value",
-                    sanitize(&variable.name)
-                );
-            }
+    for variable in remote {
+        let undecryptable = variable.undecryptable || variable.value.is_none();
 
-            !undecryptable
-        })
-        .collect()
+        if undecryptable {
+            eprintln!(
+                "warning: skipping '{}': the server could not decrypt this value",
+                sanitize(&variable.name)
+            );
+            skipped.push(variable);
+        } else {
+            usable.push(variable);
+        }
+    }
+
+    (usable, skipped)
 }
 
 pub struct ChangePlan {

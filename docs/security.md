@@ -151,6 +151,11 @@ DATABASE_URL changed
 truncating long values. Values are still only shown for that invocation and are
 never written to logs by the CLI itself.
 
+For machine-readable output, `--json` (per-invocation global flag) emits a
+single JSON document on stdout for `list projects|environments|members`,
+`whoami`, and the `push`/`pull` summaries; progress messages go to stderr.
+Values only appear with `--show-values`.
+
 Do not pass secrets as command-line arguments; they would be visible in shell
 history and process listings.
 

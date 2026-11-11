@@ -29,8 +29,25 @@ async fn list_members(config: &AppConfig) -> Result<(), Box<dyn Error>> {
 }
 
 async fn list_projects(config: &AppConfig) -> Result<(), Box<dyn Error>> {
+    let json = config.json_output;
     let client = session::authenticated_client(config).await?;
     let projects = client.get_projects().await?;
+
+    if json {
+        let items: Vec<serde_json::Value> = projects
+            .iter()
+            .map(|project| {
+                serde_json::json!({
+                    "id": project._id,
+                    "name": project.name,
+                    "role": project.role,
+                })
+            })
+            .collect();
+
+        crate::utils::output::json(&items);
+        return Ok(());
+    }
 
     if projects.is_empty() {
         println!("No projects found.");
@@ -54,8 +71,10 @@ async fn list_projects(config: &AppConfig) -> Result<(), Box<dyn Error>> {
 }
 
 async fn list_environments(config: &AppConfig) -> Result<(), Box<dyn Error>> {
-    let local =
-        local_config::load(config).map_err(|error| format!("failed to load {}: {error}", config.config_file_path))?;
+    let json = config.json_output;
+
+    let local = local_config::load(config)
+        .map_err(|error| format!("failed to load {}: {error}", config.config_file_path))?;
 
     if local.project.id.is_empty() {
         return Err(format!("project id is missing from {}", config.config_file_path).into());
@@ -63,6 +82,16 @@ async fn list_environments(config: &AppConfig) -> Result<(), Box<dyn Error>> {
 
     let client = session::authenticated_client(config).await?;
     let environments = client.get_environments(&local.project.id, None).await?;
+
+    if json {
+        let items: Vec<serde_json::Value> = environments
+            .iter()
+            .map(|environment| serde_json::json!({ "id": environment._id, "name": environment.name }))
+            .collect();
+
+        crate::utils::output::json(&items);
+        return Ok(());
+    }
 
     if environments.is_empty() {
         println!("No environments found.");

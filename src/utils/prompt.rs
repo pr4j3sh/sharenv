@@ -5,8 +5,13 @@ use std::{
 
 /// Prompt for a single line of non-secret text.
 pub fn prompt_line(message: &str) -> io::Result<String> {
-    print!("{message}");
-    io::stdout().flush()?;
+    if crate::utils::output::json_output() {
+        eprint!("{message}");
+        io::stderr().flush()?;
+    } else {
+        print!("{message}");
+        io::stdout().flush()?;
+    }
 
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
@@ -15,8 +20,13 @@ pub fn prompt_line(message: &str) -> io::Result<String> {
 }
 
 pub fn confirm(message: &str) -> io::Result<bool> {
-    print!("{message}");
-    io::stdout().flush()?;
+    if crate::utils::output::json_output() {
+        eprint!("{message}");
+        io::stderr().flush()?;
+    } else {
+        print!("{message}");
+        io::stdout().flush()?;
+    }
 
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;

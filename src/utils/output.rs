@@ -6,6 +6,36 @@
 
 use std::iter::Peekable;
 use std::str::Chars;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static JSON_OUTPUT: AtomicBool = AtomicBool::new(false);
+
+/// Set once at startup; prompts write to stderr so stdout stays pure JSON.
+pub fn set_json_output(value: bool) {
+    JSON_OUTPUT.store(value, Ordering::Relaxed);
+}
+
+pub fn json_output() -> bool {
+    JSON_OUTPUT.load(Ordering::Relaxed)
+}
+
+/// Print a progress line. Human output goes to stdout; in `--json` mode it
+/// goes to stderr so stdout carries exactly one JSON document.
+pub fn line(json: bool, text: impl AsRef<str>) {
+    if json {
+        eprintln!("{}", text.as_ref());
+    } else {
+        println!("{}", text.as_ref());
+    }
+}
+
+/// Print a single JSON document on stdout.
+pub fn json<T: serde::Serialize>(value: &T) {
+    match serde_json::to_string_pretty(value) {
+        Ok(text) => println!("{text}"),
+        Err(_) => println!("{{}}"),
+    }
+}
 
 const MAX_CHARS: usize = 200;
 

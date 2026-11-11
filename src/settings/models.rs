@@ -16,6 +16,10 @@ pub struct AppConfig {
     /// supplied through an environment override.
     #[serde(skip)]
     pub profile: Option<String>,
+    /// Runtime-only `--json` switch: emit machine-readable output on stdout.
+    /// Never persisted in config or environment variables.
+    #[serde(skip)]
+    pub json_output: bool,
 }
 
 #[derive(Debug, Deserialize)]
