@@ -1,7 +1,7 @@
 use super::client::ApiClient;
 use crate::{
     models::{
-        AddUserModel, AddUserRequest, CreateProjectModel, CreateProjectRequest, DeleteProjectModel,
+        CreateProjectModel, CreateProjectRequest, DeleteProjectModel, DeleteProjectRequest,
         ProjectModel,
     },
     utils::error::api_error,
@@ -9,19 +9,38 @@ use crate::{
 
 impl ApiClient {
     pub async fn get_projects(&self) -> Result<Vec<ProjectModel>, Box<dyn std::error::Error>> {
-        let mut request = self.client.get(self.url(&self.routes.projects));
+        let mut projects = Vec::new();
+        let mut offset = 0u32;
 
-        if let Some(token) = &self.token {
-            request = request.bearer_auth(token);
+        loop {
+            let limit = 100u32;
+            let mut request = self
+                .client
+                .get(self.url(&self.routes.projects))
+                .query(&[("limit", limit), ("offset", offset)]);
+
+            if let Some(token) = &self.token {
+                request = request.bearer_auth(token);
+            }
+
+            let response = request.send().await?;
+
+            if !response.status().is_success() {
+                return Err(Box::new(api_error(response).await));
+            }
+
+            let page: Vec<ProjectModel> = response.json().await?;
+            let count = page.len();
+            projects.extend(page);
+
+            if (count as u32) < limit {
+                break;
+            }
+
+            offset += limit;
         }
 
-        let response = request.send().await?;
-
-        if !response.status().is_success() {
-            return Err(Box::new(api_error(response).await));
-        }
-
-        Ok(response.json::<Vec<ProjectModel>>().await?)
+        Ok(projects)
     }
 
     pub async fn create_project(
@@ -46,35 +65,18 @@ impl ApiClient {
         Ok(response.json::<CreateProjectModel>().await?)
     }
 
-    pub async fn add_user(
-        &self,
-        project_id: &str,
-        email: String,
-    ) -> Result<AddUserModel, Box<dyn std::error::Error>> {
-        let mut request = self
-            .client
-            .put(self.resource(&self.routes.projects, project_id))
-            .json(&AddUserRequest { email });
-
-        if let Some(token) = &self.token {
-            request = request.bearer_auth(token);
-        }
-
-        let response = request.send().await?;
-
-        if !response.status().is_success() {
-            return Err(Box::new(api_error(response).await));
-        }
-
-        Ok(response.json::<AddUserModel>().await?)
-    }
-
     pub async fn delete_project_by_name(
         &self,
         project_name: &str,
+        password: &str,
     ) -> Result<DeleteProjectModel, Box<dyn std::error::Error>> {
         let base = format!("{}/name", self.routes.projects.trim_end_matches('/'));
-        let mut request = self.client.delete(self.resource(&base, project_name));
+        let mut request = self
+            .client
+            .delete(self.resource(&base, project_name))
+            .json(&DeleteProjectRequest {
+                password: password.to_string(),
+            });
 
         if let Some(token) = &self.token {
             request = request.bearer_auth(token);
@@ -92,10 +94,14 @@ impl ApiClient {
     pub async fn delete_project(
         &self,
         project_id: &str,
+        password: &str,
     ) -> Result<DeleteProjectModel, Box<dyn std::error::Error>> {
         let mut request = self
             .client
-            .delete(self.resource(&self.routes.projects, project_id));
+            .delete(self.resource(&self.routes.projects, project_id))
+            .json(&DeleteProjectRequest {
+                password: password.to_string(),
+            });
 
         if let Some(token) = &self.token {
             request = request.bearer_auth(token);

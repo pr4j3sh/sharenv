@@ -1,9 +1,8 @@
 use std::error::Error;
 
 use crate::{
-    api::client::ApiClient,
     settings::AppConfig,
-    utils::{local_config, output::sanitize, token},
+    utils::{local_config, output::sanitize, session},
 };
 
 pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>> {
@@ -25,7 +24,7 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
 }
 
 async fn list_projects(config: &AppConfig) -> Result<(), Box<dyn Error>> {
-    let client = client(config)?;
+    let client = session::authenticated_client(config).await?;
     let projects = client.get_projects().await?;
 
     if projects.is_empty() {
@@ -35,10 +34,16 @@ async fn list_projects(config: &AppConfig) -> Result<(), Box<dyn Error>> {
 
     let rows = projects
         .into_iter()
-        .map(|project| (sanitize(&project._id), sanitize(&project.name)))
+        .map(|project| {
+            vec![
+                sanitize(&project._id),
+                sanitize(&project.name),
+                sanitize(&project.role),
+            ]
+        })
         .collect::<Vec<_>>();
 
-    print_table("ID", "NAME", &rows);
+    print_table(&["ID", "NAME", "ROLE"], &rows);
 
     Ok(())
 }
@@ -51,7 +56,7 @@ async fn list_environments(config: &AppConfig) -> Result<(), Box<dyn Error>> {
         return Err(format!("project id is missing from {}", config.config_file_path).into());
     }
 
-    let client = client(config)?;
+    let client = session::authenticated_client(config).await?;
     let environments = client.get_environments(&local.project.id, None).await?;
 
     if environments.is_empty() {
@@ -61,36 +66,47 @@ async fn list_environments(config: &AppConfig) -> Result<(), Box<dyn Error>> {
 
     let rows = environments
         .into_iter()
-        .map(|environment| (sanitize(&environment._id), sanitize(&environment.name)))
+        .map(|environment| vec![sanitize(&environment._id), sanitize(&environment.name)])
         .collect::<Vec<_>>();
 
-    print_table("ID", "NAME", &rows);
+    print_table(&["ID", "NAME"], &rows);
 
     Ok(())
 }
 
-fn client(config: &AppConfig) -> Result<ApiClient, Box<dyn Error>> {
-    let token = token::get_token(&config.auth)?.ok_or_else(|| {
-        format!(
-            "not logged in; run '{} login' first",
-            env!("CARGO_PKG_NAME")
-        )
-    })?;
+fn print_table(headers: &[&str], rows: &[Vec<String>]) {
+    let columns = headers.len();
 
-    Ok(ApiClient::new(&config.api_config)?.with_token(token))
-}
+    let widths = (0..columns)
+        .map(|column| {
+            rows.iter()
+                .map(|row| row[column].len())
+                .chain(std::iter::once(headers[column].len()))
+                .max()
+                .unwrap_or(headers[column].len())
+        })
+        .collect::<Vec<_>>();
 
-fn print_table(first_header: &str, second_header: &str, rows: &[(String, String)]) {
-    let first_width = rows
-        .iter()
-        .map(|(first, _)| first.len())
-        .chain(std::iter::once(first_header.len()))
-        .max()
-        .unwrap_or(first_header.len());
+    let print_row = |cells: &[String], last_column: usize| {
+        for (index, cell) in cells.iter().enumerate() {
+            if index > 0 {
+                print!("  ");
+            }
 
-    println!("{first_header:<first_width$}  {second_header}");
+            if index == last_column {
+                print!("{cell}");
+            } else {
+                print!("{cell:<width$}", width = widths[index]);
+            }
+        }
 
-    for (first, second) in rows {
-        println!("{first:<first_width$}  {second}");
+        println!();
+    };
+
+    let header_row: Vec<String> = headers.iter().map(|header| header.to_string()).collect();
+    print_row(&header_row, columns - 1);
+
+    for row in rows {
+        print_row(row, columns - 1);
     }
 }

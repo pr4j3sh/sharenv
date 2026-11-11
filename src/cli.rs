@@ -26,12 +26,17 @@ pub async fn run_cli(config: &mut AppConfig) -> Result<(), Box<dyn std::error::E
             let client = ApiClient::new(&config.api_config)?;
             commands::login::run(&client, config).await?
         }
+        "logout" => commands::logout::run(config).await?,
+        "verify" => commands::verify::run(config, args.get(2..).unwrap_or(&[])).await?,
+        "resend" => commands::resend::run(config, args.get(2..).unwrap_or(&[])).await?,
         "init" | "i" => {
             let (init_args, adopt) = parse_switch(args.get(2..).unwrap_or(&[]), &["--adopt"]);
             let name = parse_project_arg(&init_args)?;
             commands::init::run(config, name, adopt).await?
         }
         "add" | "a" => commands::add::run(config, args.get(2..).unwrap_or(&[])).await?,
+        "invite" => commands::invite::run(config, args.get(2..).unwrap_or(&[])).await?,
+        "invites" => commands::invites::run(config, args.get(2..).unwrap_or(&[])).await?,
         "push" => commands::push::run(config, args.get(2..).unwrap_or(&[])).await?,
         "pull" => commands::pull::run(config, args.get(2..).unwrap_or(&[])).await?,
         "list" | "ls" => commands::list::run(config, args.get(2..).unwrap_or(&[])).await?,

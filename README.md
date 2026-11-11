@@ -64,7 +64,15 @@ SHARENV__API_CONFIG__BASE_URL=https://sharenv.example.com sharenv login
 ```bash
 sharenv register   # r
 sharenv login      # l
+sharenv logout
 ```
+
+If the server has email verification enabled, `register` emails you a one-time
+code and asks for it before logging you in. Verify later (or on another
+machine) with `sharenv verify [email]`; `sharenv resend` sends a new code.
+Sessions use short-lived access tokens with a rotating refresh token; the CLI
+refreshes automatically. `sharenv logout` revokes your session server-side and
+removes the local tokens.
 
 ### 2. Initialize a project
 
@@ -98,11 +106,30 @@ do not own always asks for confirmation.
 
 ### 4. Share the project or add an environment
 
-Only the project owner can share it. Run this from the initialized project
-directory:
+Only the project owner can share it. Sharing uses invitations: the invited
+teammate must accept before they gain access. Run this from the initialized
+project directory:
 
 ```bash
-sharenv add --user teammate@example.com
+sharenv invite teammate@example.com
+```
+
+You'll be asked for the role (`writer` or `reader`, default `reader`), which
+environments to grant, and your password (the API re-authenticates you before
+creating the invitation). If the server has no mail provider configured, the
+invitation token is printed once — send it to your teammate out-of-band.
+
+The invitee accepts with:
+
+```bash
+sharenv invites accept <token>
+```
+
+Manage pending invitations for the current project:
+
+```bash
+sharenv invites list
+sharenv invites cancel <invitation_id>
 ```
 
 Use `-e` to create another environment for the current project:
@@ -114,8 +141,8 @@ sharenv add -e staging
 This creates the environment remotely and adds an empty `.env.staging` file if
 it does not exist yet.
 
-The command prints the project id returned by the API. Send that id to your
-teammate, and they can pull the variables without a local `.sharenv` config:
+`invites accept` prints the project id, and your teammate can then pull the
+variables without a local `.sharenv` config:
 
 ```bash
 sharenv pull --pid <project_id> -e dev
@@ -196,8 +223,13 @@ Key behaviors:
 | ---------- | ------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `register` | `r`                 | —                                                        | Register a new account.                                                                     |
 | `login`    | `l`                 | —                                                        | Log in.                                                                                     |
+| `logout`   | —                   | —                                                        | Revoke the server-side session and remove local tokens.                                      |
+| `verify`   | —                   | `[email]`                                                | Verify an account with the emailed code (defaults to the email saved at registration). Saves the session on success. |
+| `resend`   | —                   | `[email]`                                                | Resend the verification code.                                                               |
 | `init`     | `i`                 | `-p`, `--project <project>`, `--adopt`                   | Create the remote project and local `.env` files. Defaults to the current directory's name. `--adopt` records identity for an existing project. |
-| `add`      | `a`                 | `-u`, `--user <email>` or `-e`, `--environment <env>`     | Share the current project with a user, or create an environment (owner only).                |
+| `invite`   | —                   | `<email>`, `--role <writer\|reader>`                     | Invite a user to the current project (owner only; re-authenticates with your password). |
+| `invites`  | —                   | `list`, `cancel <id>`, `accept <token>`                   | List, cancel (owner, re-authenticates) or accept invitations. Accepting requires the invited account. |
+| `add`      | `a`                 | `-e`, `--environment <env>`                              | Create an environment for the current project.                                               |
 | `push`     | —                   | `-e`, `--environment <env>`, `--show-values`             | Push one environment, or all environments with local `.env.<env>` files when `-e` is omitted. Values are hidden unless `--show-values`. |
 | `pull`     | —                   | `-e`, `--environment <env>`, `-pid`, `--project_id <id>`, `--show-values` | Pull one environment, or all environments when `-e` is omitted. Requires project membership. |
 | `list`     | `ls`                | `projects`, `environments`                               | List your projects or the current project's environments.                                   |
@@ -214,7 +246,7 @@ The global file is at `~/.config/sharenv/config.toml` on Linux. The repository's
 root `config.toml` only provides the defaults embedded at build time.
 
 ```toml
-config_version = 1
+config_version = 2
 config_dir_name = ".sharenv"
 config_file_path = ".sharenv/config.toml"
 
@@ -224,6 +256,11 @@ base_url = "http://localhost:8000"
 [api_config.routes]
 register = "/v1/auth/register"
 login = "/v1/auth/login"
+refresh = "/v1/auth/refresh"
+logout = "/v1/auth/logout"
+verify = "/v1/auth/verify"
+resend = "/v1/auth/resend"
+invitations = "/v1/invitations"
 projects = "/v1/project/"
 environments = "/v1/environment"
 variables = "/v1/variable"
@@ -231,12 +268,17 @@ environment_name_param = "environment_name"
 
 [auth]
 token_service = "sharenv"   # keyring service name
-token_account = "default"   # keyring account name
+token_account = "default"   # keyring account name; the refresh token lives at `<account>-refresh`
 
 [environment_files]
 environments = ["dev", "prod", "local"]   # one .env.<name> per entry
 env_file_prefix = ".env"
 ```
+
+Access and refresh tokens are stored in the OS keyring (service/account per
+`[auth]`). The refresh token lives at `token_account-refresh` and a pending
+verification email (if any) at `token_account-pending-verify`; there is no
+plaintext token file.
 
 Non-HTTPS URLs are rejected unless the host is loopback. Use `--insecure` on a
 single command to override that check; it cannot be stored in config or in an

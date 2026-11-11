@@ -32,7 +32,28 @@ pub(super) fn migrate_config(config_path: &Path) -> Result<(), Box<dyn std::erro
     while version < CURRENT_CONFIG_VERSION {
         match version {
             1 => {
-                // v1 -> v2 migration goes here.
+                // v1 -> v2: add the new auth and invitation routes introduced
+                // by the server-side security work.
+                if let Some(routes) = config
+                    .get_mut("api_config")
+                    .and_then(|api| api.get_mut("routes"))
+                    .and_then(|routes| routes.as_table_mut())
+                {
+                    let defaults = [
+                        ("refresh", "/v1/auth/refresh"),
+                        ("logout", "/v1/auth/logout"),
+                        ("verify", "/v1/auth/verify"),
+                        ("resend", "/v1/auth/resend"),
+                        ("invitations", "/v1/invitations"),
+                    ];
+
+                    for (key, value) in defaults {
+                        routes
+                            .entry(key.to_string())
+                            .or_insert_with(|| toml::Value::String(value.to_string()));
+                    }
+                }
+
                 version = 2;
             }
             _ => {

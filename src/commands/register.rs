@@ -1,22 +1,45 @@
 use std::error::Error;
 
 use crate::{
-    api::client::ApiClient, settings::AppConfig, utils::output::sanitize,
-    utils::prompt::prompt_credentials, utils::token,
+    api::client::ApiClient,
+    commands::verify,
+    settings::AppConfig,
+    utils::output::sanitize,
+    utils::prompt::{prompt_credentials, prompt_line},
+    utils::token,
 };
 
 pub async fn run(client: &ApiClient, config: &AppConfig) -> Result<(), Box<dyn Error>> {
     let (email, password) = prompt_credentials()?;
 
-    let auth = client.register(email.clone(), password).await?;
-
-    if let Err(error) = token::save_token(&config.auth, &auth.token) {
-        return Err(
-            format!("registered successfully, but failed to save the token: {error}").into(),
-        );
+    if password.chars().count() < 12 {
+        return Err("password must be at least 12 characters long".into());
     }
 
-    println!("Registered and saved token for '{}'.", sanitize(&email));
+    let email = email.trim().to_lowercase();
+    let auth = client.register(email.clone(), password).await?;
 
-    Ok(())
+    println!("Registered '{}'.", sanitize(&email));
+
+    if !auth.verification_required {
+        println!("Email verification is not enabled on this server; you can log in now.");
+        return Ok(());
+    }
+
+    token::save_pending_verify(&config.auth, &email)
+        .map_err(|error| format!("failed to save your email for verification: {error}"))?;
+
+    println!("A verification code was sent to '{}'.", sanitize(&email));
+
+    let otp = prompt_line("Enter the code (or leave empty to verify later): ")?;
+
+    if otp.is_empty() {
+        println!(
+            "Verify later with: {} verify",
+            env!("CARGO_PKG_NAME")
+        );
+        return Ok(());
+    }
+
+    verify::verify_flow(config, &email, otp).await
 }

@@ -6,13 +6,13 @@ use crate::{
     settings::AppConfig,
     utils::{
         args::{FlagSpec, parse_flags, parse_switch},
-        env_changes::{ChangePlan, plan_changes},
+        env_changes::{ChangePlan, filter_decryptable, plan_changes},
         env_file::{env_file_path, write_env_changes},
         env_parser::read_env_file,
-        jwt, local_config,
+        local_config,
         output::sanitize,
         project_guard::{self, Access},
-        prompt, token,
+        prompt, session,
         validation::validate_environment_name,
     },
 };
@@ -59,14 +59,8 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
         }
     };
 
-    let token = token::get_token(&config.auth)?.ok_or_else(|| {
-        format!(
-            "not logged in; run '{} login' first",
-            env!("CARGO_PKG_NAME")
-        )
-    })?;
-    let current_user = jwt::subject(&token);
-    let client = ApiClient::new(&config.api_config)?.with_token(token);
+    let client = session::authenticated_client(config).await?;
+    let current_user = session::current_user(&client);
 
     // `GET /project/` only lists owned or shared projects, so this refuses
     // non-members before any variable is fetched.
@@ -139,6 +133,7 @@ async fn pull_environment(
 ) -> Result<(), Box<dyn Error>> {
     let env_name = sanitize(&environment.name);
     let remote = client.get_variables(&environment._id).await?;
+    let remote = filter_decryptable(remote);
 
     let path = env_file_path(config, &environment.name);
     let existing = if Path::new(&path).exists() {

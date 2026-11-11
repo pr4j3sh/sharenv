@@ -10,9 +10,13 @@ pub fn run(config: &AppConfig) {
     println!("COMMANDS:");
     println!("    register, r   Register a new account");
     println!("    login, l      User login");
+    println!("    logout        Revoke your server-side session and remove local tokens");
+    println!("    verify        Verify your account with the emailed code [email]");
+    println!("    resend        Resend the verification code [email]");
     println!("    init, i       Initialize a project [-p|--project <project_name>] [--adopt]");
-    println!("    add, a        Share the current project with a user [-u|--user <email>]");
-    println!("                  Create an environment [-e|--environment <env_name>]");
+    println!("    invite        Invite a user to the current project <email> [--role <writer|reader>]");
+    println!("    invites       Manage invitations: invites list | invites cancel <id> | invites accept <token>");
+    println!("    add, a        Create an environment [-e|--environment <env_name>]");
     println!("    push          Push variables [-e|--environment <env_name>] [--show-values]");
     println!("                  Omit -e to push all environments with local .env files");
     println!("    pull          Pull variables [-e|--environment <env_name>] [--show-values]");
@@ -26,6 +30,7 @@ pub fn run(config: &AppConfig) {
     println!(
         "                  Usage: delete | delete -p|--project <project_name> | delete -e|--environment <env_name>"
     );
+    println!("                  Project deletion requires your password (server re-authentication)");
     println!("    help, h       Display this help message");
     println!();
     println!("GLOBAL OPTIONS:");

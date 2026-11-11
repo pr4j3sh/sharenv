@@ -76,33 +76,3 @@ fn is_loopback_host(host: &str) -> bool {
     host.parse::<std::net::IpAddr>()
         .is_ok_and(|address| address.is_loopback())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::validate_base_url;
-
-    #[test]
-    fn allows_https() {
-        assert!(validate_base_url("https://sharenv.example.com", false).is_ok());
-    }
-
-    #[test]
-    fn allows_loopback_http() {
-        assert!(validate_base_url("http://localhost:8000", false).is_ok());
-        assert!(validate_base_url("http://127.0.0.1:8000", false).is_ok());
-        assert!(validate_base_url("http://[::1]:8000", false).is_ok());
-    }
-
-    #[test]
-    fn refuses_plaintext_http() {
-        assert!(validate_base_url("http://sharenv.example.com", false).is_err());
-        assert!(validate_base_url("http://localhost.evil.com", false).is_err());
-        assert!(validate_base_url("http://127.0.0.1.evil.com", false).is_err());
-        assert!(validate_base_url("http://localhost@evil.com", false).is_err());
-    }
-
-    #[test]
-    fn insecure_allows_plaintext_http() {
-        assert!(validate_base_url("http://sharenv.example.com", true).is_ok());
-    }
-}

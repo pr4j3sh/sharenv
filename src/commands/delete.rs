@@ -1,13 +1,12 @@
 use std::error::Error;
 
 use crate::{
-    api::client::ApiClient,
     settings::AppConfig,
     utils::{
         args::{FlagSpec, parse_flags, parse_switch},
         local_config,
         output::sanitize,
-        prompt, token,
+        prompt, session,
         validation::{validate_environment_name, validate_project_name},
     },
 };
@@ -42,6 +41,16 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
     }
 }
 
+fn prompt_password() -> Result<String, Box<dyn Error>> {
+    let password = rpassword::prompt_password("your password (required by the server): ")?;
+
+    if password.is_empty() {
+        return Err("password cannot be empty".into());
+    }
+
+    Ok(password)
+}
+
 async fn delete_current_project(config: &AppConfig, yes: bool) -> Result<(), Box<dyn Error>> {
     let project_id = load_project_id(config)?;
 
@@ -55,8 +64,9 @@ async fn delete_current_project(config: &AppConfig, yes: bool) -> Result<(), Box
         return Ok(());
     }
 
-    let client = client(config)?;
-    let deleted = client.delete_project(&project_id).await?;
+    let password = prompt_password()?;
+    let client = session::authenticated_client(config).await?;
+    let deleted = client.delete_project(&project_id, &password).await?;
 
     local_config::remove(config).map_err(|error| {
         format!(
@@ -90,8 +100,9 @@ async fn delete_project_by_name(
         return Ok(());
     }
 
-    let client = client(config)?;
-    let deleted = client.delete_project_by_name(project_name).await?;
+    let password = prompt_password()?;
+    let client = session::authenticated_client(config).await?;
+    let deleted = client.delete_project_by_name(project_name, &password).await?;
 
     let local_id = local_config::load(config)
         .ok()
@@ -124,7 +135,7 @@ async fn delete_environment(
     validate_environment_name(environment_name)?;
 
     let project_id = load_project_id(config)?;
-    let client = client(config)?;
+    let client = session::authenticated_client(config).await?;
     let environments = client
         .get_environments(&project_id, Some(environment_name))
         .await?;
@@ -169,15 +180,4 @@ fn load_project_id(config: &AppConfig) -> Result<String, Box<dyn Error>> {
     }
 
     Ok(local.project.id)
-}
-
-fn client(config: &AppConfig) -> Result<ApiClient, Box<dyn Error>> {
-    let token = token::get_token(&config.auth)?.ok_or_else(|| {
-        format!(
-            "not logged in; run '{} login' first",
-            env!("CARGO_PKG_NAME")
-        )
-    })?;
-
-    Ok(ApiClient::new(&config.api_config)?.with_token(token))
 }

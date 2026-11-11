@@ -1,4 +1,4 @@
-config_version = 1
+config_version = 2
 config_dir_name = ".sharenv"
 config_file_path = ".sharenv/config.toml"
 
@@ -8,6 +8,11 @@ base_url = "http://localhost:8000"
 [api_config.routes]
 register = "/v1/auth/register"
 login = "/v1/auth/login"
+refresh = "/v1/auth/refresh"
+logout = "/v1/auth/logout"
+verify = "/v1/auth/verify"
+resend = "/v1/auth/resend"
+invitations = "/v1/invitations"
 projects = "/v1/project/"
 environments = "/v1/environment"
 variables = "/v1/variable"

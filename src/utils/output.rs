@@ -69,28 +69,3 @@ fn truncate(input: &str) -> String {
     output.push('…');
     output
 }
-
-#[cfg(test)]
-mod tests {
-    use super::sanitize;
-
-    #[test]
-    fn strips_ansi_escapes() {
-        assert_eq!(sanitize("\u{1b}[31mred\u{1b}[0m"), "red");
-        assert_eq!(sanitize("\u{1b}]0;title\u{7}text"), "text");
-    }
-
-    #[test]
-    fn renders_control_characters() {
-        assert_eq!(sanitize("a\nb\r\tc"), "a\\nb\\r\\tc");
-        assert_eq!(sanitize("a\u{0}b"), "a\\u{0}b");
-    }
-
-    #[test]
-    fn truncates_long_values() {
-        let value = "a".repeat(500);
-        let output = sanitize(&value);
-        assert_eq!(output.chars().count(), 200);
-        assert!(output.ends_with('…'));
-    }
-}

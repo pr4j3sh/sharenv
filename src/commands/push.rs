@@ -6,13 +6,14 @@ use crate::{
     settings::AppConfig,
     utils::{
         args::{parse_switch, parse_value_arg},
+        env_changes::filter_decryptable,
         env_file::env_file_path,
         env_parser::read_env_file,
         error::is_conflict_error,
-        jwt, local_config,
+        local_config,
         output::sanitize,
         project_guard::{self, Access},
-        prompt, token,
+        prompt, session,
         validation::validate_environment_name,
     },
 };
@@ -32,14 +33,8 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
         return Err(format!("project id is missing from {}", config.config_file_path).into());
     }
 
-    let token = token::get_token(&config.auth)?.ok_or_else(|| {
-        format!(
-            "not logged in; run '{} login' first",
-            env!("CARGO_PKG_NAME")
-        )
-    })?;
-    let current_user = jwt::subject(&token);
-    let client = ApiClient::new(&config.api_config)?.with_token(token);
+    let client = session::authenticated_client(config).await?;
+    let current_user = session::current_user(&client);
 
     if project_guard::authorize(
         config,
@@ -129,6 +124,7 @@ async fn push_environment(
     }
 
     let remote = client.get_variables(&environment._id).await?;
+    let remote = filter_decryptable(remote);
     let mut remote_by_name = remote
         .into_iter()
         .map(|variable| (variable.name.clone(), variable))
@@ -160,7 +156,7 @@ async fn push_environment(
                     return Err(format!("failed to push '{name}': {error}").into());
                 }
             },
-            Some(remote) if remote.value == variable.value => {
+            Some(remote) if remote.value.as_deref() == Some(variable.value.as_str()) => {
                 unchanged += 1;
                 println!("= {name} unchanged");
             }
@@ -168,7 +164,10 @@ async fn push_environment(
                 println!("{name} changed:");
 
                 if show_values {
-                    println!("  remote: {}", sanitize(&remote.value));
+                    println!(
+                        "  remote: {}",
+                        sanitize(remote.value.as_deref().unwrap_or("<undecryptable>"))
+                    );
                     println!("  local:  {}", sanitize(&variable.value));
                 }
 

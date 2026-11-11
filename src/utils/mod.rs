@@ -8,5 +8,6 @@ pub mod local_config;
 pub mod output;
 pub mod project_guard;
 pub mod prompt;
+pub mod session;
 pub mod token;
 pub mod validation;

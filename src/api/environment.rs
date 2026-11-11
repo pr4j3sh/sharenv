@@ -12,28 +12,45 @@ impl ApiClient {
         project_id: &str,
         environment_name: Option<&str>,
     ) -> Result<Vec<EnvironmentModel>, Box<dyn std::error::Error>> {
-        let mut request = self
-            .client
-            .get(self.resource(&self.routes.environments, project_id));
+        let mut environments = Vec::new();
+        let mut offset = 0u32;
 
-        if let Some(environment_name) = environment_name {
-            request = request.query(&[(
-                self.routes.environment_name_param.as_str(),
-                environment_name,
-            )]);
+        loop {
+            let limit = 100u32;
+            let mut request = self
+                .client
+                .get(self.resource(&self.routes.environments, project_id))
+                .query(&[("limit", limit), ("offset", offset)]);
+
+            if let Some(environment_name) = environment_name {
+                request = request.query(&[(
+                    self.routes.environment_name_param.as_str(),
+                    environment_name,
+                )]);
+            }
+
+            if let Some(token) = &self.token {
+                request = request.bearer_auth(token);
+            }
+
+            let response = request.send().await?;
+
+            if !response.status().is_success() {
+                return Err(Box::new(api_error(response).await));
+            }
+
+            let page: Vec<EnvironmentModel> = response.json().await?;
+            let count = page.len();
+            environments.extend(page);
+
+            if (count as u32) < limit {
+                break;
+            }
+
+            offset += limit;
         }
 
-        if let Some(token) = &self.token {
-            request = request.bearer_auth(token);
-        }
-
-        let response = request.send().await?;
-
-        if !response.status().is_success() {
-            return Err(Box::new(api_error(response).await));
-        }
-
-        Ok(response.json::<Vec<EnvironmentModel>>().await?)
+        Ok(environments)
     }
 
     pub async fn create_environment(

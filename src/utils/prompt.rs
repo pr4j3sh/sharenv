@@ -3,6 +3,17 @@ use std::{
     io::{self, Write},
 };
 
+/// Prompt for a single line of non-secret text.
+pub fn prompt_line(message: &str) -> io::Result<String> {
+    print!("{message}");
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+
+    Ok(input.trim_end_matches(['\r', '\n']).trim().to_string())
+}
+
 pub fn confirm(message: &str) -> io::Result<bool> {
     print!("{message}");
     io::stdout().flush()?;

@@ -28,6 +28,11 @@ pub struct ApiConfig {
 pub struct ApiRoutes {
     pub register: String,
     pub login: String,
+    pub refresh: String,
+    pub logout: String,
+    pub verify: String,
+    pub resend: String,
+    pub invitations: String,
     pub projects: String,
     pub environments: String,
     pub variables: String,

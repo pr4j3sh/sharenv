@@ -2,6 +2,21 @@ pub fn validate_project_name(name: &str) -> Result<(), Box<dyn std::error::Error
     validate_name("project", name)
 }
 
+pub fn validate_email(email: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let valid = !email.is_empty()
+        && email.len() <= 254
+        && email.chars().filter(|c| *c == '@').count() == 1
+        && !email.starts_with('@')
+        && !email.ends_with('@')
+        && email.chars().all(|c| !c.is_whitespace() && !c.is_control());
+
+    if valid {
+        Ok(())
+    } else {
+        Err(format!("invalid email '{}'", crate::utils::output::sanitize(email)).into())
+    }
+}
+
 pub fn validate_environment_name(name: &str) -> Result<(), Box<dyn std::error::Error>> {
     validate_name("environment", name)
 }

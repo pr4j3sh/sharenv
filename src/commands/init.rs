@@ -1,13 +1,12 @@
 use std::env;
 
 use crate::{
-    api::client::ApiClient,
     settings::AppConfig,
     utils::{
         env_file::{create_env_file, env_file_path},
-        jwt, local_config,
+        local_config,
         output::sanitize,
-        token,
+        session,
         validation::validate_project_name,
     },
 };
@@ -26,14 +25,8 @@ pub async fn run(
 
     let project_name = name.unwrap_or(cwd_name);
 
-    let token = token::get_token(&config.auth)?.ok_or_else(|| {
-        format!(
-            "not logged in; run '{} login' first",
-            env!("CARGO_PKG_NAME")
-        )
-    })?;
-    let current_user = jwt::subject(&token);
-    let client = ApiClient::new(&config.api_config)?.with_token(token);
+    let client = session::authenticated_client(config).await?;
+    let current_user = session::current_user(&client);
 
     let local = local_config::load(config).ok();
     let local_id = local
