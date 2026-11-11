@@ -81,26 +81,35 @@ Current code: `src/utils/token.rs`, `src/commands/login.rs`,
 Current code: `src/api/client.rs`, `src/api/*.rs`, `config.toml`,
 `src/utils/error.rs`.
 
-- [ ] **P0 — Enforce HTTPS by default.** In `ApiClient::new` or config
+- [x] **P0 — Enforce HTTPS by default.** In `ApiClient::new` or config
       validation, reject `http://` for non-loopback hosts unless `--insecure`
       is passed. Acceptance: `base_url = "http://prod.example.com"` fails with a
-      clear error.
-- [ ] **P0 — Add request timeouts.** `Client::new()` has none
+      clear error. (2be57d8)
+- [x] **P0 — Add request timeouts.** `Client::new()` has none
       (`src/api/client.rs:15`). Set `connect_timeout` and `timeout` (e.g. 10s /
-      30s), and a bounded pool.
-- [ ] **P0 — Disable or constrain redirects.** Reqwest follows redirects by
+      30s), and a bounded pool. (e1392da — 10s connect, 30s request, pool cap
+      8/host)
+- [x] **P0 — Disable or constrain redirects.** Reqwest follows redirects by
       default. Set `redirect::Policy::none()` or a custom policy that refuses
       cross-host and HTTPS→HTTP redirects, so the bearer token cannot be
-      forwarded.
-- [ ] **P0 — Sanitize server-provided error text.** `api_error` echoes the raw
+      forwarded. (e1392da — Policy::none(); server never legitimately
+      redirects)
+- [x] **P0 — Sanitize server-provided error text.** `api_error` echoes the raw
       body (`src/utils/error.rs:31-57`). Strip ANSI/control characters and
       truncate before printing. Never print a body that could contain a secret.
-- [ ] **P1 — Pin or document TLS trust.** Use the platform verifier (already the
+      (788e2bd — output::sanitize: ANSI escape stripping, visible rendering of
+      control chars, 200-char truncation)
+- [x] **P1 — Pin or document TLS trust.** Use the platform verifier (already the
       default via rustls), add a `--cacert` option for self-hosted deployments,
       and document certificate requirements.
-- [ ] **P1 — Add a `User-Agent`** with the CLI version for server audit logs.
-- [ ] **P1 — Add retry/backoff only for idempotent GETs**, never for writes, to
-      avoid duplicate pushes.
+      (e1392da — rustls-platform-verifier remains default; `--cacert <path>`
+      adds a PEM bundle additively, per-invocation, never persisted)
+- [x] **P1 — Add a `User-Agent`** with the CLI version for server audit logs.
+      (e1392da — `sharenv/<version>`)
+- [x] **P1 — Add retry/backoff only for idempotent GETs**, never for writes, to
+      avoid duplicate pushes. (e1392da — `send_get_with_retry`: 3 attempts,
+      250/750ms, only connect/timeout/5xx/429)
+
 
 ---
 
