@@ -1,6 +1,6 @@
 # Usage guide
 
-## 1. Accounts and sessions
+## Accounts and sessions
 
 ```bash
 sharenv register   # r
@@ -21,7 +21,7 @@ Keyring slots are derived per server (`<token_account>-<fnv1a64(base_url)>`) so
 dev and production sessions don't overwrite each other; pass `--profile <name>`
 on any command to use a named slot instead.
 
-## 2. Initialize a project
+## Initialize a project
 
 Run this from inside the project you want to track:
 
@@ -31,10 +31,19 @@ sharenv init my-project      # or choose one explicitly
 ```
 
 This creates the remote project, the local `.sharenv/config.toml`, and one
-`.env.<env>` file per default environment (`dev`, `prod`, `local`). It refuses
-to reuse an existing remote project silently; use `--adopt` to opt in to that.
+`.env.<env>` file per default environment (`dev`, `prod`, `local`).
 
-## 3. Push variables
+Init checks your local files _before_ touching anything remote: if an existing
+`.env.<env>` is not a safe secret file (wrong permissions, a symlink, not owned
+by you), it stops with the `chmod 600` fix and creates no project, remote or
+otherwise. If a previous run left a partial setup behind (a remote project or
+environment exists but a local `.env.<env>` file does not), running `init`
+again repairs the missing pieces; nothing is created twice. When a local
+project id already matches a remote project it reports "already initialized".
+Use `--adopt` to record identity metadata for an existing, initialized project
+without creating anything.
+
+## Push variables
 
 Push one environment:
 
@@ -55,7 +64,7 @@ hidden by default; pass `--show-values` to print sanitized values.
 `push` shows the destination project and owner first. Pushing to a project you
 do not own always asks for confirmation.
 
-## 4. Share the project or add an environment
+## Share the project or add an environment
 
 Only the project owner can share it. Sharing uses invitations: the teammate
 must accept before they gain access. Run this from the initialized project
@@ -70,17 +79,26 @@ environments to grant, and your password (the API re-authenticates you before
 creating the invitation). If the server has no mail provider configured, the
 invitation token is printed once — send it to your teammate out-of-band.
 
-The invitee accepts with (and receives the project id):
+The invitee accepts with:
 
 ```bash
 sharenv invites accept <token>
 ```
 
-The invitee can then pull without a local `.sharenv` config:
+Acceptance links the current directory: the CLI writes `.sharenv/config.toml`
+with the project id and its identity metadata (file mode `0600`), so the
+invitee can run `pull`, `push`, `add` and `list environments` there directly:
 
 ```bash
-sharenv pull --project-id <project_id> dev
+cd the-project
+sharenv pull dev
 ```
+
+The link is never written over an existing binding — if the directory already
+records a project (or contains an unreadable config), it is left untouched and
+the accept hint tells them to use `sharenv pull --project-id <project_id> dev`
+instead. `pull` also works without a binding via `--project-id`; `push`
+requires a linked directory.
 
 Manage pending invitations for the current project:
 
@@ -108,7 +126,7 @@ sharenv add staging    # again: no-op "already exists"
 This creates the environment remotely and adds an empty `.env.staging` file if
 it does not exist yet.
 
-## 5. Pull variables
+## Pull variables
 
 ```bash
 sharenv pull dev
@@ -125,7 +143,7 @@ Values are hidden by default; pass `--show-values` to print them. Existing
 comments and formatting in the local file are preserved; the values are hidden
 no matter which you pick.
 
-## 6. List projects, environments, members
+## List projects, environments, members
 
 ```bash
 sharenv list projects       # ls p
@@ -136,7 +154,7 @@ sharenv list members        # owner-only; members with roles and grants
 `list environments` and `list members` use the project id from
 `.sharenv/config.toml`; `list members` is owner-only.
 
-## 7. Delete a project or environment
+## Delete a project or environment
 
 Run this from the initialized project directory. All commands ask for
 confirmation; add `--yes` (or `-y`) to skip the prompt.

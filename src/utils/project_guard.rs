@@ -132,7 +132,11 @@ fn check_local_identity(config: &AppConfig, project: &ProjectModel) -> IdentityC
         return check;
     }
 
-    if local.project.created_by != local_config::CREATED_BY_INIT {
+    // A recorded binding from `init` or `invites accept` carries identity
+    // metadata; anything else does not.
+    if local.project.created_by != local_config::CREATED_BY_INIT
+        && local.project.created_by != local_config::CREATED_BY_INVITES
+    {
         check.warnings.push(format!(
             "{} has no identity metadata; run '{} init --adopt' to record it",
             config.config_file_path,

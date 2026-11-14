@@ -1,6 +1,38 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
+
+/// The API serializes datetimes as ISO 8601. A datetime that round-tripped
+/// through Mongo can lose its offset (e.g. `updated_at` after an update),
+/// so the offset is optional here; a naive timestamp is treated as UTC.
+fn deserialize_datetime_utc<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = String::deserialize(deserializer)?;
+    parse_datetime_utc(&raw).map_err(serde::de::Error::custom)
+}
+
+fn deserialize_optional_datetime_utc<'de, D>(
+    deserializer: D,
+) -> Result<Option<DateTime<Utc>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = Option::<String>::deserialize(deserializer)?;
+
+    Ok(raw.and_then(|value| parse_datetime_utc(&value).ok()))
+}
+
+fn parse_datetime_utc(raw: &str) -> Result<DateTime<Utc>, String> {
+    if let Ok(parsed) = DateTime::parse_from_rfc3339(raw) {
+        return Ok(parsed.with_timezone(&Utc));
+    }
+
+    NaiveDateTime::parse_from_str(raw, "%Y-%m-%dT%H:%M:%S%.f")
+        .map(|naive| naive.and_utc())
+        .map_err(|error| format!("invalid datetime '{raw}': {error}"))
+}
 
 fn deserialize_env_value<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
@@ -156,6 +188,7 @@ pub struct CreateInvitationModel {
     pub role: String,
     pub environments: Vec<String>,
     #[allow(dead_code)]
+    #[serde(deserialize_with = "deserialize_datetime_utc")]
     pub expires_at: DateTime<Utc>,
     /// The raw invitation token. Returned only at creation time and stored
     /// hashed server-side; this is the only time it is exposed.
@@ -175,8 +208,11 @@ pub struct InvitationModel {
     #[allow(dead_code)]
     pub invited_by: String,
     #[allow(dead_code)]
+    #[serde(deserialize_with = "deserialize_datetime_utc")]
     pub created_at: DateTime<Utc>,
+    #[serde(deserialize_with = "deserialize_datetime_utc")]
     pub expires_at: DateTime<Utc>,
+    #[serde(default, deserialize_with = "deserialize_optional_datetime_utc")]
     pub accepted_at: Option<DateTime<Utc>>,
 }
 
@@ -223,7 +259,9 @@ pub struct ProjectModel {
     pub user_id: String,
     #[serde(default = "default_role")]
     pub role: String,
+    #[serde(deserialize_with = "deserialize_datetime_utc")]
     pub created_at: DateTime<Utc>,
+    #[serde(deserialize_with = "deserialize_datetime_utc")]
     pub updated_at: DateTime<Utc>,
 }
 
@@ -236,7 +274,9 @@ pub struct EnvironmentModel {
     pub _id: String,
     pub name: String,
     pub project_id: String,
+    #[serde(deserialize_with = "deserialize_datetime_utc")]
     pub created_at: DateTime<Utc>,
+    #[serde(deserialize_with = "deserialize_datetime_utc")]
     pub updated_at: DateTime<Utc>,
 }
 
@@ -247,7 +287,9 @@ pub struct VariableModel {
     #[serde(deserialize_with = "deserialize_env_value")]
     pub value: Option<String>,
     pub environment_id: String,
+    #[serde(deserialize_with = "deserialize_datetime_utc")]
     pub created_at: DateTime<Utc>,
+    #[serde(deserialize_with = "deserialize_datetime_utc")]
     pub updated_at: DateTime<Utc>,
     #[serde(default)]
     pub undecryptable: bool,

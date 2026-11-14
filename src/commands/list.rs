@@ -2,7 +2,11 @@ use std::error::Error;
 
 use crate::{
     settings::AppConfig,
-    utils::{local_config, output::sanitize, session},
+    utils::{
+        local_config,
+        output::{print_table, sanitize},
+        session,
+    },
 };
 
 pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>> {
@@ -72,16 +76,10 @@ async fn list_projects(config: &AppConfig) -> Result<(), Box<dyn Error>> {
 
 async fn list_environments(config: &AppConfig) -> Result<(), Box<dyn Error>> {
     let json = config.json_output;
-
-    let local = local_config::load(config)
-        .map_err(|error| format!("failed to load {}: {error}", config.config_file_path))?;
-
-    if local.project.id.is_empty() {
-        return Err(format!("project id is missing from {}", config.config_file_path).into());
-    }
+    let project_id = local_config::project_id(config)?;
 
     let client = session::authenticated_client(config).await?;
-    let environments = client.get_environments(&local.project.id, None).await?;
+    let environments = client.get_environments(&project_id, None).await?;
 
     if json {
         let items: Vec<serde_json::Value> = environments
@@ -108,39 +106,3 @@ async fn list_environments(config: &AppConfig) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn print_table(headers: &[&str], rows: &[Vec<String>]) {
-    let columns = headers.len();
-
-    let widths = (0..columns)
-        .map(|column| {
-            rows.iter()
-                .map(|row| row[column].len())
-                .chain(std::iter::once(headers[column].len()))
-                .max()
-                .unwrap_or(headers[column].len())
-        })
-        .collect::<Vec<_>>();
-
-    let print_row = |cells: &[String], last_column: usize| {
-        for (index, cell) in cells.iter().enumerate() {
-            if index > 0 {
-                print!("  ");
-            }
-
-            if index == last_column {
-                print!("{cell}");
-            } else {
-                print!("{cell:<width$}", width = widths[index]);
-            }
-        }
-
-        println!();
-    };
-
-    let header_row: Vec<String> = headers.iter().map(|header| header.to_string()).collect();
-    print_row(&header_row, columns - 1);
-
-    for row in rows {
-        print_row(row, columns - 1);
-    }
-}

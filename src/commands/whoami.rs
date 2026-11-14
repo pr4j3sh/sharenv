@@ -41,9 +41,9 @@ pub async fn run(config: &AppConfig) -> Result<(), Box<dyn Error>> {
 
         crate::utils::output::json(&serde_json::json!({
             "user": subject,
-            "expires_at": expiry.map(|exp| chrono::DateTime::<chrono::Utc>::from_timestamp(exp, 0))
-                .map(|dt| dt.map(|d| d.to_rfc3339()))
-                .flatten(),
+            "expires_at": expiry
+                .and_then(|exp| chrono::DateTime::<chrono::Utc>::from_timestamp(exp, 0))
+                .map(|dt| dt.to_rfc3339()),
             "base_url": base_url,
             "profile": profile.unwrap_or("(default)"),
             "keyring_slot": slot,

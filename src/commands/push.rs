@@ -44,12 +44,7 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
         validate_environment_name(env_name)?;
     }
 
-    let local = local_config::load(config)
-        .map_err(|error| format!("failed to load {}: {error}", config.config_file_path))?;
-
-    if local.project.id.is_empty() {
-        return Err(format!("project id is missing from {}", config.config_file_path).into());
-    }
+    let project_id = local_config::project_id(config)?;
 
     let client = session::authenticated_client(config).await?;
     let current_user = session::current_user(&client);
@@ -58,7 +53,7 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
         config,
         &client,
         current_user.as_deref(),
-        &local.project.id,
+        &project_id,
         Access::Push,
     )
     .await?
@@ -70,7 +65,7 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
     let summaries = match env_name {
         Some(env_name) => {
             let environments = client
-                .get_environments(&local.project.id, Some(&env_name))
+                .get_environments(&project_id, Some(&env_name))
                 .await?;
             let environment = environments
                 .into_iter()
@@ -79,7 +74,7 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
 
             vec![push_environment(config, &client, &environment, show_values, dry_run).await?]
         }
-        None => push_all_environments(config, &client, &local.project.id, show_values, dry_run).await?,
+        None => push_all_environments(config, &client, &project_id, show_values, dry_run).await?,
     };
 
     if json {

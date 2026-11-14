@@ -8,7 +8,8 @@ use crate::{
         args::parse_switch,
         local_config,
         output::sanitize,
-        prompt, session,
+        prompt::{self, prompt_password},
+        session,
         validation::{validate_environment_name, validate_project_name},
     },
 };
@@ -29,16 +30,6 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
         .into()),
         None => Err("missing delete subject; usage: delete <project [name] | environment <name>> [-y|--yes]".into()),
     }
-}
-
-fn prompt_password() -> Result<String, Box<dyn Error>> {
-    let password = rpassword::prompt_password("your password (required by the server): ")?;
-
-    if password.is_empty() {
-        return Err("password cannot be empty".into());
-    }
-
-    Ok(password)
 }
 
 async fn delete_project_cmd(
@@ -85,7 +76,7 @@ async fn delete_environment_cmd(
 }
 
 async fn delete_current_project(config: &AppConfig, yes: bool) -> Result<(), Box<dyn Error>> {
-    let project_id = load_project_id(config)?;
+    let project_id = local_config::project_id(config)?;
 
     if !yes
         && !prompt::confirm(&format!(
@@ -97,7 +88,7 @@ async fn delete_current_project(config: &AppConfig, yes: bool) -> Result<(), Box
         return Ok(());
     }
 
-    let mut password = prompt_password()?;
+    let mut password = prompt_password("your password (required by the server): ")?;
     let client = session::authenticated_client(config).await?;
     let deleted = client.delete_project(&project_id, &password).await?;
     password.zeroize();
@@ -134,7 +125,7 @@ async fn delete_project_by_name(
         return Ok(());
     }
 
-    let mut password = prompt_password()?;
+    let mut password = prompt_password("your password (required by the server): ")?;
     let client = session::authenticated_client(config).await?;
     let deleted = client.delete_project_by_name(project_name, &password).await?;
     password.zeroize();
@@ -167,7 +158,7 @@ async fn delete_environment(
     environment_name: &str,
     yes: bool,
 ) -> Result<(), Box<dyn Error>> {
-    let project_id = load_project_id(config)?;
+    let project_id = local_config::project_id(config)?;
     let client = session::authenticated_client(config).await?;
     let environments = client
         .get_environments(&project_id, Some(environment_name))
@@ -199,18 +190,3 @@ async fn delete_environment(
     Ok(())
 }
 
-fn load_project_id(config: &AppConfig) -> Result<String, Box<dyn Error>> {
-    let local =
-        local_config::load(config).map_err(|error| format!("failed to load {}: {error}", config.config_file_path))?;
-
-    if local.project.id.is_empty() {
-        return Err(format!(
-            "project id is missing from {}; run '{} init' first",
-            config.config_file_path,
-            env!("CARGO_PKG_NAME")
-        )
-        .into());
-    }
-
-    Ok(local.project.id)
-}

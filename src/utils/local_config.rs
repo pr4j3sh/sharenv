@@ -6,6 +6,8 @@ use crate::settings::AppConfig;
 use crate::utils::fs_secure;
 
 pub const CREATED_BY_INIT: &str = "init";
+/// Provenance marker for a binding recorded by `invites accept`.
+pub const CREATED_BY_INVITES: &str = "invites-accept";
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct LocalConfig {
@@ -34,13 +36,37 @@ pub fn save(config: &AppConfig, project_id: &str) -> Result<(), Box<dyn Error>> 
     write(config, &local)
 }
 
-/// Store the project identity recorded by `init`. These fields are advisory:
-/// they detect drift, but a hand-written config can forge them.
+/// Load the local project config and return the current project id, or fail
+/// with the standard message pointing at `init`.
+pub fn project_id(config: &AppConfig) -> Result<String, Box<dyn Error>> {
+    let local = load(config).map_err(|error| {
+        format!(
+            "failed to load {}: {error}",
+            config.config_file_path
+        )
+    })?;
+
+    if local.project.id.is_empty() {
+        return Err(format!(
+            "project id is missing from {}; run '{} init' first",
+            config.config_file_path,
+            env!("CARGO_PKG_NAME")
+        )
+        .into());
+    }
+
+    Ok(local.project.id)
+}
+
+/// Store the project identity recorded by `init` (or `invites accept`).
+/// These fields are advisory: they detect drift, but a hand-written config
+/// can forge them.
 pub fn save_identity(
     config: &AppConfig,
     project_id: &str,
     name: &str,
     owner_id: Option<&str>,
+    created_by: &str,
 ) -> Result<(), Box<dyn Error>> {
     let mut local = load(config).unwrap_or_default();
 
@@ -48,7 +74,7 @@ pub fn save_identity(
     local.project.name = name.to_string();
     local.project.owner_id = owner_id.unwrap_or_default().to_string();
     local.project.base_url = config.api_config.base_url.trim_end_matches('/').to_string();
-    local.project.created_by = CREATED_BY_INIT.to_string();
+    local.project.created_by = created_by.to_string();
 
     write(config, &local)
 }
@@ -63,7 +89,6 @@ fn write(config: &AppConfig, local: &LocalConfig) -> Result<(), Box<dyn Error>> 
     Ok(())
 }
 
-#[allow(dead_code)]
 pub fn load(config: &AppConfig) -> Result<LocalConfig, Box<dyn Error>> {
     let content = fs_secure::safe_read(Path::new(&config.config_file_path))?;
 

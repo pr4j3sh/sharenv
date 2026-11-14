@@ -18,17 +18,16 @@ pub async fn run(client: &ApiClient, config: &AppConfig) -> Result<(), Box<dyn E
         Err(error) => {
             password.zeroize();
 
-            if let Some(api_error) = error.downcast_ref::<crate::utils::error::ApiError>() {
-                if api_error.status == reqwest::StatusCode::FORBIDDEN
-                    && api_error.message.starts_with("email_not_verified")
-                {
-                    return Err(format!(
-                        "'{}' is not verified yet. A verification code was emailed at registration; run '{} verify' to verify and log in.",
-                        sanitize(&email),
-                        env!("CARGO_PKG_NAME")
-                    )
-                    .into());
-                }
+            if let Some(api_error) = error.downcast_ref::<crate::utils::error::ApiError>()
+                && api_error.status == reqwest::StatusCode::FORBIDDEN
+                && api_error.message.starts_with("email_not_verified")
+            {
+                return Err(format!(
+                    "'{}' is not verified yet. A verification code was emailed at registration; run '{} verify' to verify and log in.",
+                    sanitize(&email),
+                    env!("CARGO_PKG_NAME")
+                )
+                .into());
             }
 
             return Err(error);

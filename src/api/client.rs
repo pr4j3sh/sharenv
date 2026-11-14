@@ -5,6 +5,7 @@ use std::time::Duration;
 use reqwest::{Client, Url};
 
 use crate::settings::{ApiConfig, ApiRoutes};
+use crate::utils::error::api_error;
 
 /// Keep the client's resource ceiling predictable: short connect timeout,
 /// generous but bounded request timeout, and a small bounded idle pool.
@@ -53,6 +54,90 @@ impl ApiClient {
     pub fn with_token(mut self, token: String) -> Self {
         self.token = Some(token);
         self
+    }
+
+    /// Apply the optional bearer token to a request being built.
+    pub(crate) fn bearer(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        match &self.token {
+            Some(token) => request.bearer_auth(token),
+            None => request,
+        }
+    }
+
+    /// GET with bounded retry; non-success responses map to `ApiError`.
+    pub(crate) async fn get_with_retry(
+        &self,
+        build: impl Fn() -> reqwest::RequestBuilder,
+    ) -> Result<reqwest::Response, Box<dyn Error>> {
+        let response = send_get_with_retry(build).await?;
+
+        if !response.status().is_success() {
+            return Err(Box::new(api_error(response).await));
+        }
+
+        Ok(response)
+    }
+
+    /// Execute a request, mapping non-success responses to `ApiError`.
+    pub(crate) async fn send_checked(
+        &self,
+        request: reqwest::RequestBuilder,
+    ) -> Result<reqwest::Response, Box<dyn Error>> {
+        let response = request.send().await?;
+
+        if !response.status().is_success() {
+            return Err(Box::new(api_error(response).await));
+        }
+
+        Ok(response)
+    }
+
+    /// Execute a request and deserialize the success body as JSON.
+    pub(crate) async fn send_json<T: serde::de::DeserializeOwned>(
+        &self,
+        request: reqwest::RequestBuilder,
+    ) -> Result<T, Box<dyn Error>> {
+        Ok(self.send_checked(request).await?.json().await?)
+    }
+
+    /// Fetch every page of a paginated list endpoint (limit 100).
+    pub(crate) async fn get_paginated<T: serde::de::DeserializeOwned>(
+        &self,
+        url: &str,
+        extra_query: &[(String, String)],
+    ) -> Result<Vec<T>, Box<dyn Error>> {
+        const PAGE: u32 = 100;
+        let mut items = Vec::new();
+        let mut offset = 0u32;
+
+        loop {
+            let response = self
+                .get_with_retry(|| {
+                    let mut request = self
+                        .client
+                        .get(url)
+                        .query(&[("limit", PAGE), ("offset", offset)]);
+
+                    if !extra_query.is_empty() {
+                        request = request.query(extra_query);
+                    }
+
+                    self.bearer(request)
+                })
+                .await?;
+
+            let page: Vec<T> = response.json().await?;
+            let count = page.len();
+            items.extend(page);
+
+            if (count as u32) < PAGE {
+                break;
+            }
+
+            offset += PAGE;
+        }
+
+        Ok(items)
     }
 
     pub fn url(&self, path: &str) -> String {

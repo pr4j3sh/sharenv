@@ -37,6 +37,17 @@ pub fn confirm(message: &str) -> io::Result<bool> {
     ))
 }
 
+/// Prompt for a required password without echo.
+pub fn prompt_password(label: &str) -> Result<String, Box<dyn Error>> {
+    let password = rpassword::prompt_password(label)?;
+
+    if password.is_empty() {
+        return Err("password cannot be empty".into());
+    }
+
+    Ok(password)
+}
+
 pub fn prompt_credentials() -> Result<(String, String), Box<dyn Error>> {
     print!("email: ");
     io::stdout().flush()?;

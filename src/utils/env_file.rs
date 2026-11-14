@@ -50,10 +50,7 @@ pub fn write_env_changes(
     let path_ref = Path::new(path);
     fs_secure::path_inside_cwd(path_ref)?;
 
-    let content = match fs_secure::safe_read_opt(path_ref, true)? {
-        Some(content) => content,
-        None => String::new(),
-    };
+    let content = fs_secure::safe_read_opt(path_ref, true)?.unwrap_or_default();
 
     let mut lines: Vec<String> = content.lines().map(str::to_string).collect();
 

@@ -1,8 +1,5 @@
 use super::client::ApiClient;
-use crate::{
-    models::{MemberModel, UpdateMemberAccessModel, UpdateMemberAccessRequest},
-    utils::error::api_error,
-};
+use crate::models::{MemberModel, UpdateMemberAccessModel, UpdateMemberAccessRequest};
 
 impl ApiClient {
     fn project_members_url(&self, project_id: &str) -> String {
@@ -19,22 +16,13 @@ impl ApiClient {
         &self,
         project_id: &str,
     ) -> Result<Vec<MemberModel>, Box<dyn std::error::Error>> {
-        let response = crate::api::client::send_get_with_retry(|| {
-            let mut request = self.client.get(self.project_members_url(project_id));
+        let url = self.project_members_url(project_id);
 
-            if let Some(token) = &self.token {
-                request = request.bearer_auth(token);
-            }
-
-            request
-        })
-        .await?;
-
-        if !response.status().is_success() {
-            return Err(Box::new(api_error(response).await));
-        }
-
-        Ok(response.json::<Vec<MemberModel>>().await?)
+        Ok(self
+            .get_with_retry(|| self.bearer(self.client.get(&url)))
+            .await?
+            .json::<Vec<MemberModel>>()
+            .await?)
     }
 
     /// Owner-only: fully replace a member's environment grants and optionally
@@ -47,7 +35,7 @@ impl ApiClient {
         role: &str,
         password: &str,
     ) -> Result<UpdateMemberAccessModel, Box<dyn std::error::Error>> {
-        let mut request = self
+        let request = self
             .client
             .patch(format!(
                 "{}/{}",
@@ -60,16 +48,6 @@ impl ApiClient {
                 password: password.to_string(),
             });
 
-        if let Some(token) = &self.token {
-            request = request.bearer_auth(token);
-        }
-
-        let response = request.send().await?;
-
-        if !response.status().is_success() {
-            return Err(Box::new(api_error(response).await));
-        }
-
-        Ok(response.json::<UpdateMemberAccessModel>().await?)
+        self.send_json(self.bearer(request)).await
     }
 }

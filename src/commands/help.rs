@@ -6,7 +6,7 @@ pub fn run(config: &AppConfig) {
     println!("{name} - Manage your project environments\n");
     println!("USAGE:");
     println!("    {name} <COMMAND> [ARGS] [OPTIONS]\n");
-    println!("    using config v{} \n", &config.config_version);
+    println!("    using config v{} \n", config.config_version);
     println!("COMMANDS:");
     println!("    register, r   Register a new account");
     println!("    login, l      User login");

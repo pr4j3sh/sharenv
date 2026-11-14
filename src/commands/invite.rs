@@ -8,7 +8,7 @@ use crate::{
         env_select::{environment_names_for, print_environment_list, prompt_selection},
         local_config,
         output::sanitize,
-        prompt::prompt_line,
+        prompt::{prompt_line, prompt_password},
         session,
         validation::validate_email,
     },
@@ -21,21 +21,11 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
 
     let role = resolve_role(role_flag)?;
 
-    let local =
-        local_config::load(config).map_err(|error| format!("failed to load {}: {error}", config.config_file_path))?;
-
-    if local.project.id.is_empty() {
-        return Err(format!(
-            "project id is missing from {}; run '{} init' first",
-            config.config_file_path,
-            env!("CARGO_PKG_NAME")
-        )
-        .into());
-    }
+    let project_id = local_config::project_id(config)?;
 
     let client = session::authenticated_client(config).await?;
 
-    let environments = client.get_environments(&local.project.id, None).await?;
+    let environments = client.get_environments(&project_id, None).await?;
 
     if environments.is_empty() {
         return Err("this project has no environments to grant".into());
@@ -52,7 +42,7 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
 
     let invitation = client
         .create_invitation(
-            &local.project.id,
+            &project_id,
             email.to_string(),
             &role,
             granted,
@@ -113,16 +103,6 @@ pub fn resolve_role(role_flag: Option<String>) -> Result<String, Box<dyn Error>>
             }
         }
     }
-}
-
-pub fn prompt_password(label: &str) -> Result<String, Box<dyn Error>> {
-    let password = rpassword::prompt_password(label)?;
-
-    if password.is_empty() {
-        return Err("password cannot be empty".into());
-    }
-
-    Ok(password)
 }
 
 fn parse_args(args: &[String]) -> Result<(String, Option<String>), Box<dyn Error>> {

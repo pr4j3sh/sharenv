@@ -1,4 +1,4 @@
-use std::{error::Error, fs::File, path::Path};
+use std::{error::Error, path::Path};
 
 use crate::{
     settings::AppConfig,
@@ -6,7 +6,7 @@ use crate::{
         args::take_positional,
         env_file::env_file_path,
         error::is_conflict_error,
-        local_config,
+        fs_secure, local_config,
         session,
         validation::validate_environment_name,
     },
@@ -18,22 +18,12 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
 
     validate_environment_name(&environment_name)?;
 
-    let local =
-        local_config::load(config).map_err(|error| format!("failed to load {}: {error}", config.config_file_path))?;
-
-    if local.project.id.is_empty() {
-        return Err(format!(
-            "project id is missing from {}; run '{} init' first",
-            config.config_file_path,
-            env!("CARGO_PKG_NAME")
-        )
-        .into());
-    }
+    let project_id = local_config::project_id(config)?;
 
     let client = session::authenticated_client(config).await?;
 
     let environment = match client
-        .create_environment(&local.project.id, environment_name.clone())
+        .create_environment(&project_id, environment_name.clone())
         .await
     {
         Ok(environment) => environment,
@@ -51,7 +41,7 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
 
     let path = env_file_path(config, &environment_name);
     if !Path::new(&path).exists() {
-        File::create(&path).map_err(|error| {
+        fs_secure::atomic_write_secure(Path::new(&path), "").map_err(|error| {
             format!("environment created remotely, but failed to create {path}: {error}")
         })?;
         println!("Created {path}");

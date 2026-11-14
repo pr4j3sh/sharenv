@@ -37,6 +37,44 @@ pub fn json<T: serde::Serialize>(value: &T) {
     }
 }
 
+/// Print an aligned table to stdout. The last column is not padded.
+pub(crate) fn print_table(headers: &[&str], rows: &[Vec<String>]) {
+    let columns = headers.len();
+
+    let widths = (0..columns)
+        .map(|column| {
+            rows.iter()
+                .map(|row| row[column].len())
+                .chain(std::iter::once(headers[column].len()))
+                .max()
+                .unwrap_or(headers[column].len())
+        })
+        .collect::<Vec<_>>();
+
+    let print_row = |cells: &[String]| {
+        for (index, cell) in cells.iter().enumerate() {
+            if index > 0 {
+                print!("  ");
+            }
+
+            if index == columns - 1 {
+                print!("{cell}");
+            } else {
+                print!("{cell:<width$}", width = widths[index]);
+            }
+        }
+
+        println!();
+    };
+
+    let header_row: Vec<String> = headers.iter().map(|header| header.to_string()).collect();
+    print_row(&header_row);
+
+    for row in rows {
+        print_row(row);
+    }
+}
+
 const MAX_CHARS: usize = 200;
 
 pub fn sanitize(input: &str) -> String {

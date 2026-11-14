@@ -50,8 +50,9 @@ variable values.
   for that single invocation.
 - The bearer token is never forwardable via redirects: the client does not
   follow them.
-- Read-only requests are retried up to 3 times with 250/750ms backoff on
-  connection errors, timeouts, 5xx and 429. Writes are never retried.
+- Read-only requests are retried up to 2 times after the initial attempt
+  (3 attempts total) with 250/750ms backoff on connection errors, timeouts,
+  5xx and 429. Writes are never retried.
 
 ## What `sharenv` protects against
 
@@ -162,7 +163,9 @@ history and process listings.
 ## Project identity and local config
 
 At `init`, the CLI records the project id, name, owner id, API base URL, and a
-`created_by = "init"` marker in `.sharenv/config.toml`.
+`created_by = "init"` marker in `.sharenv/config.toml`. When `invites accept`
+links a directory for an invitee, it records the same fields with
+`created_by = "invites-accept"`.
 
 Before `push` or `pull`, the CLI fetches the project list from the server and
 prints:
@@ -175,8 +178,9 @@ The local identity fields are **advisory**, not a security boundary: anyone who
 can write the file can forge them. They are used to detect drift:
 
 - A name or owner mismatch blocks `push` and requires confirmation for `pull`.
-- A missing identity marker (for example, a config written by an older version
-  or by hand) produces a warning and requires confirmation before pushing.
+- A missing identity marker (for example, a hand-written config not created
+  by `init` or `invites accept`) produces a warning and requires confirmation
+  before pushing.
 - A changed API base URL produces a warning.
 
 Pushes to a project you do not own always show the owner and ask for

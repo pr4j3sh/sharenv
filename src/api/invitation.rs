@@ -1,10 +1,7 @@
 use super::client::ApiClient;
-use crate::{
-    models::{
-        AcceptInvitationModel, CancelInvitationModel, CancelInvitationRequest,
-        CreateInvitationModel, CreateInvitationRequest, InvitationModel,
-    },
-    utils::error::api_error,
+use crate::models::{
+    AcceptInvitationModel, CancelInvitationModel, CancelInvitationRequest,
+    CreateInvitationModel, CreateInvitationRequest, InvitationModel,
 };
 
 impl ApiClient {
@@ -24,7 +21,7 @@ impl ApiClient {
         environments: Vec<String>,
         password: &str,
     ) -> Result<CreateInvitationModel, Box<dyn std::error::Error>> {
-        let mut request = self
+        let request = self
             .client
             .post(self.project_invitations_url(project_id))
             .json(&CreateInvitationRequest {
@@ -34,39 +31,20 @@ impl ApiClient {
                 password: password.to_string(),
             });
 
-        if let Some(token) = &self.token {
-            request = request.bearer_auth(token);
-        }
-
-        let response = request.send().await?;
-
-        if !response.status().is_success() {
-            return Err(Box::new(api_error(response).await));
-        }
-
-        Ok(response.json::<CreateInvitationModel>().await?)
+        self.send_json(self.bearer(request)).await
     }
 
     pub async fn list_invitations(
         &self,
         project_id: &str,
     ) -> Result<Vec<InvitationModel>, Box<dyn std::error::Error>> {
-        let response = crate::api::client::send_get_with_retry(|| {
-            let mut request = self.client.get(self.project_invitations_url(project_id));
+        let url = self.project_invitations_url(project_id);
 
-            if let Some(token) = &self.token {
-                request = request.bearer_auth(token);
-            }
-
-            request
-        })
-        .await?;
-
-        if !response.status().is_success() {
-            return Err(Box::new(api_error(response).await));
-        }
-
-        Ok(response.json::<Vec<InvitationModel>>().await?)
+        Ok(self
+            .get_with_retry(|| self.bearer(self.client.get(&url)))
+            .await?
+            .json::<Vec<InvitationModel>>()
+            .await?)
     }
 
     pub async fn cancel_invitation(
@@ -75,7 +53,7 @@ impl ApiClient {
         invitation_id: &str,
         password: &str,
     ) -> Result<CancelInvitationModel, Box<dyn std::error::Error>> {
-        let mut request = self
+        let request = self
             .client
             .delete(format!(
                 "{}/{}",
@@ -86,37 +64,17 @@ impl ApiClient {
                 password: password.to_string(),
             });
 
-        if let Some(token) = &self.token {
-            request = request.bearer_auth(token);
-        }
-
-        let response = request.send().await?;
-
-        if !response.status().is_success() {
-            return Err(Box::new(api_error(response).await));
-        }
-
-        Ok(response.json::<CancelInvitationModel>().await?)
+        self.send_json(self.bearer(request)).await
     }
 
     pub async fn accept_invitation(
         &self,
         token: &str,
     ) -> Result<AcceptInvitationModel, Box<dyn std::error::Error>> {
-        let mut request = self
+        let request = self
             .client
             .post(format!("{}/{}/accept", self.url(&self.routes.invitations), token));
 
-        if let Some(token) = &self.token {
-            request = request.bearer_auth(token);
-        }
-
-        let response = request.send().await?;
-
-        if !response.status().is_success() {
-            return Err(Box::new(api_error(response).await));
-        }
-
-        Ok(response.json::<AcceptInvitationModel>().await?)
+        self.send_json(self.bearer(request)).await
     }
 }

@@ -2,15 +2,24 @@
 name = "sharenv"
 version = "0.1.0"
 edition = "2024"
+description = "Sync and share project .env files with a self-hosted sharenv-api"
+license = "MIT"
+repository = "https://github.com/pr4j3sh/sharenv"
+homepage = "https://github.com/pr4j3sh/sharenv"
+keywords = ["env", "secrets", "self-hosted", "cli", "devops"]
+categories = ["command-line-utilities"]
+exclude = ["/docs", "/.github"]
+
+[profile.release]
+strip = "symbols"
 
 [dependencies]
 base64 = "0.23"
 config = { version = "0.15", features = ["toml"] }
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
-futures = "0.3.28"
-tokio = { version = "1.32.0", features = ["full"] }
 zeroize = "1"
+tokio = { version = "1.32.0", features = ["full"] }
 serde_json = "1.0.154"
 toml = "1"
 reqwest = { version = "0.13.5", features = ["json", "query"] }
@@ -19,4 +28,3 @@ rpassword = "7"
 directories = "6.0.0"
 libc = "0.2"
 tempfile = "3.27.0"
-anyhow = "1.0.104"

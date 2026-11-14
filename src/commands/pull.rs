@@ -7,7 +7,7 @@ use crate::{
     models::EnvironmentModel,
     settings::AppConfig,
     utils::{
-        args::{parse_switches},
+        args::parse_switches,
         env_changes::{ChangePlan, filter_decryptable, plan_changes},
         env_file::{env_file_path, write_env_changes},
         env_parser::read_env_file,
@@ -79,21 +79,9 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
 
     let project_id = match project_id {
         Some(project_id) => project_id,
-        None => {
-            let local = local_config::load(config).map_err(|error| {
-                format!("failed to load {}: {error}", config.config_file_path)
-            })?;
-
-            if local.project.id.is_empty() {
-                return Err(format!(
-                    "project id is missing from {}; pass --project-id <project_id>",
-                    config.config_file_path
-                )
-                .into());
-            }
-
-            local.project.id
-        }
+        None => local_config::project_id(config).map_err(|error| {
+            format!("{error}; pass --project-id <project_id> to pull a shared project")
+        })?,
     };
 
     let client = session::authenticated_client(config).await?;

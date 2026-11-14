@@ -3,12 +3,12 @@ use std::error::Error;
 use zeroize::Zeroize;
 
 use crate::{
-    commands::invite::prompt_password,
     settings::AppConfig,
     utils::{
         env_select::{environment_names_for, print_environment_list, prompt_selection},
         local_config,
-        output::sanitize,
+        output::{print_table, sanitize},
+        prompt::prompt_password,
         session,
         validation::validate_email,
     },
@@ -35,7 +35,7 @@ pub async fn run(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Erro
 
 pub async fn list_impl(config: &AppConfig) -> Result<(), Box<dyn Error>> {
     let json = config.json_output;
-    let project_id = project_id(config)?;
+    let project_id = local_config::project_id(config)?;
     let client = session::authenticated_client(config).await?;
 
     let environments = client.get_environments(&project_id, None).await?;
@@ -64,23 +64,21 @@ pub async fn list_impl(config: &AppConfig) -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    println!(
-        "{:<35} {:<8} {}",
-        "EMAIL",
-        "ROLE",
-        "GRANTS"
-    );
+    let rows = members
+        .iter()
+        .map(|member| {
+            let grants = environment_names_for(&member.environments, &environments).join(", ");
+            let email = if member.email.is_empty() {
+                format!("<unknown: {}>", member.user_id)
+            } else {
+                sanitize(&member.email)
+            };
 
-    for member in &members {
-        let grants = environment_names_for(&member.environments, &environments).join(", ");
-        let email = if member.email.is_empty() {
-            format!("<unknown: {}>", member.user_id)
-        } else {
-            sanitize(&member.email)
-        };
+            vec![email, member.role.clone(), grants]
+        })
+        .collect::<Vec<_>>();
 
-        println!("{:<35} {:<8} {}", truncate(&email, 35), member.role, grants);
-    }
+    print_table(&["EMAIL", "ROLE", "GRANTS"], &rows);
 
     Ok(())
 }
@@ -99,7 +97,7 @@ async fn role(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>>
         return Err("role must be 'writer' or 'reader'".into());
     }
 
-    let project_id = project_id(config)?;
+    let project_id = local_config::project_id(config)?;
     let client = session::authenticated_client(config).await?;
     let environments = client.get_environments(&project_id, None).await?;
     let members = client.list_members(&project_id).await?;
@@ -141,7 +139,7 @@ async fn envs(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>>
     let email = args[0].trim().to_lowercase();
     validate_email(&email)?;
 
-    let project_id = project_id(config)?;
+    let project_id = local_config::project_id(config)?;
     let client = session::authenticated_client(config).await?;
     let environments = client.get_environments(&project_id, None).await?;
     let members = client.list_members(&project_id).await?;
@@ -183,22 +181,6 @@ async fn envs(config: &AppConfig, args: &[String]) -> Result<(), Box<dyn Error>>
     Ok(())
 }
 
-fn project_id(config: &AppConfig) -> Result<String, Box<dyn Error>> {
-    let local =
-        local_config::load(config).map_err(|error| format!("failed to load {}: {error}", config.config_file_path))?;
-
-    if local.project.id.is_empty() {
-        return Err(format!(
-            "project id is missing from {}; run '{} init' first",
-            config.config_file_path,
-            env!("CARGO_PKG_NAME")
-        )
-        .into());
-    }
-
-    Ok(local.project.id)
-}
-
 fn find_member<'a>(
     members: &'a [crate::models::MemberModel],
     email: &str,
@@ -207,12 +189,4 @@ fn find_member<'a>(
         .iter()
         .find(|member| member.email == email)
         .ok_or_else(|| format!("'{email}' is not a member of this project").into())
-}
-
-fn truncate(text: &str, max: usize) -> String {
-    if text.chars().count() <= max {
-        return text.to_string();
-    }
-
-    format!("{}…", text.chars().take(max - 1).collect::<String>())
 }

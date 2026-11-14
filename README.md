@@ -1,16 +1,43 @@
 # sharenv
 
-A command-line tool to sync, manage, and share project environment variables.
+CLI tool to sync, manage, and share project environment variables.
 Connects to a self-hosted [sharenv-api](https://github.com/pr4j3sh/sharenv-api)
 server to keep environment configurations centralized and accessible.
 
 ## Prerequisites
 
-- [Rust 1.85+](https://rust-lang.org/tools/install/)
-- A running [sharenv-api](https://github.com/pr4j3sh/sharenv-api) instance (its
-  own setup instructions apply)
+- [sharenv-api](https://github.com/pr4j3sh/sharenv-api) instance
+- [Rust 1.85+](https://rust-lang.org/tools/install/) (only for the from-source install)
 
 ## Installation
+
+### From crates.io
+
+```bash
+cargo install sharenv
+sharenv help
+```
+
+### Prebuilt binaries
+
+Prebuilt binaries for Linux (x86_64, aarch64) and macOS (x86_64, aarch64) are
+attached to every [release](https://github.com/pr4j3sh/sharenv/releases):
+
+```bash
+curl -LO https://github.com/pr4j3sh/sharenv/releases/latest/download/sharenv-0.1.0-x86_64-unknown-linux-gnu.tar.gz
+curl -LO https://github.com/pr4j3sh/sharenv/releases/latest/download/SHA256SUMS
+sha256sum -c SHA256SUMS --ignore-missing
+tar -xzf sharenv-0.1.0-x86_64-unknown-linux-gnu.tar.gz
+sudo install -m 0755 sharenv /usr/local/bin/sharenv
+sharenv help
+```
+
+Substitute the archive's version from the release page. Linux binaries need a
+recent glibc; there is no Windows build (the tool is Unix-only). On macOS,
+Gatekeeper may block the binary on first run; allow it under System Settings →
+Privacy & Security. Verify always with `SHA256SUMS` before installing.
+
+### From source
 
 ```bash
 git clone https://github.com/pr4j3sh/sharenv.git
@@ -20,21 +47,25 @@ cargo build --release        # or: cargo install --path .
 ```
 
 The global config file is `~/.config/sharenv/config.toml` on Linux, created
-automatically on first run. Point `base_url` at your server and log in:
+automatically on first run.
+
+- Edit `base_url` in the config file as your API server's url:
 
 ```toml
 [api_config]
 base_url = "https://sharenv.example.com"
 ```
 
+- Create a user
+
 ```bash
-SHARENV__API_CONFIG__BASE_URL=https://sharenv.example.com sharenv login
+sharenv register
 ```
 
 ## Quick start
 
 ```bash
-sharenv register   # or: sharenv login
+sharenv register          # create an account (or: sharenv login, for returning users)
 sharenv init              # project name = current directory name
 sharenv push dev          # push .env.dev
 sharenv pull dev          # pull it back
@@ -45,8 +76,13 @@ flows.
 
 ## Documentation
 
-- [Usage guide](docs/usage.md) — accounts, sessions, init, push/pull, sharing, members, delete
-- [Command reference](docs/commands.md) — all commands and flags
-- [Configuration](docs/configuration.md) — `config.toml` layout, overrides, keyring storage
+- [Usage guide](docs/usage.md)
+- [Command reference](docs/commands.md)
+- [Configuration](docs/configuration.md)
 - [Environment file format](docs/env-format.md)
 - [Security & trust model](docs/security.md)
+- [Changelog](CHANGELOG.md)
+
+## License
+
+[MIT](LICENSE)
