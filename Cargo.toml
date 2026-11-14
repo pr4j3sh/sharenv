@@ -1,6 +1,6 @@
 [package]
 name = "sharenv"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 description = "Sync and share project .env files with a self-hosted sharenv-api"
 license = "MIT"

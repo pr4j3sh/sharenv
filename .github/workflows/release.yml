@@ -66,7 +66,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          sha256sum dist/*.tar.gz > dist/SHA256SUMS
+          (cd dist && sha256sum *.tar.gz > SHA256SUMS)
           gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/SHA256SUMS --generate-notes
 
   publish-crate:
