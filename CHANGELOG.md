@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.1.1 — 2026-11-15
+
+### Changed
+
+- Release binaries are Linux-only (x86_64-unknown-linux-gnu,
+  aarch64-unknown-linux-gnu). The v0.1.0 workflow built macOS archives as
+  well; those are dropped in favor of a reliable, fast pipeline.
+
 ## v0.1.0 — 2026-11-15
 
 First public release.

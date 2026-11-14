@@ -20,22 +20,21 @@ sharenv help
 
 ### Prebuilt binaries
 
-Prebuilt binaries for Linux (x86_64, aarch64) and macOS (x86_64, aarch64) are
+Prebuilt binaries for Linux (x86_64, aarch64) are
 attached to every [release](https://github.com/pr4j3sh/sharenv/releases):
 
 ```bash
-curl -LO https://github.com/pr4j3sh/sharenv/releases/latest/download/sharenv-0.1.0-x86_64-unknown-linux-gnu.tar.gz
+curl -LO https://github.com/pr4j3sh/sharenv/releases/latest/download/sharenv-0.1.1-x86_64-unknown-linux-gnu.tar.gz
 curl -LO https://github.com/pr4j3sh/sharenv/releases/latest/download/SHA256SUMS
 sha256sum -c SHA256SUMS --ignore-missing
-tar -xzf sharenv-0.1.0-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf sharenv-0.1.1-x86_64-unknown-linux-gnu.tar.gz
 sudo install -m 0755 sharenv /usr/local/bin/sharenv
 sharenv help
 ```
 
-Substitute the archive's version from the release page. Linux binaries need a
-recent glibc; there is no Windows build (the tool is Unix-only). On macOS,
-Gatekeeper may block the binary on first run; allow it under System Settings →
-Privacy & Security. Verify always with `SHA256SUMS` before installing.
+Substitute the archive's version from the release page. The binaries need a
+recent glibc; there is no macOS or Windows build (the tool is Unix-only).
+Verify the download with `SHA256SUMS` before installing.
 
 ### From source
 
