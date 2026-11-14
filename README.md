@@ -24,10 +24,10 @@ Prebuilt binaries for Linux (x86_64, aarch64) are
 attached to every [release](https://github.com/pr4j3sh/sharenv/releases):
 
 ```bash
-curl -LO https://github.com/pr4j3sh/sharenv/releases/latest/download/sharenv-0.1.1-x86_64-unknown-linux-gnu.tar.gz
+curl -LO https://github.com/pr4j3sh/sharenv/releases/latest/download/sharenv-0.1.2-x86_64-unknown-linux-gnu.tar.gz
 curl -LO https://github.com/pr4j3sh/sharenv/releases/latest/download/SHA256SUMS
 sha256sum -c SHA256SUMS --ignore-missing
-tar -xzf sharenv-0.1.1-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf sharenv-0.1.2-x86_64-unknown-linux-gnu.tar.gz
 sudo install -m 0755 sharenv /usr/local/bin/sharenv
 sharenv help
 ```

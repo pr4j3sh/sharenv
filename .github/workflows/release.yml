@@ -66,9 +66,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd dist
-          sha256sum ./*.tar.gz > SHA256SUMS
-          gh release create "$GITHUB_REF_NAME" dist/*.tar.gz SHA256SUMS --generate-notes
+          sha256sum dist/*.tar.gz > dist/SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/SHA256SUMS --generate-notes
 
   publish-crate:
     name: Publish to crates.io
